@@ -328,7 +328,7 @@
         <div style="border-left: 3px solid #2563eb; padding: 0.75rem; background: #f9fafb; border-radius: 0.25rem; margin-bottom: 0.75rem;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
             <strong>{{ author.full_name or author.username }}</strong>
-            <span style="color: #6b7280; font-size: 0.875rem;">{{ utc_to_local(comment.created_at).strftime('%d/%m/%Y %H:%M') }}</span>
+            <span style="color: #6b7280; font-size: 0.875rem;">{{ comment.created_at | format_datetime_tz(workspace.timezone if workspace and workspace.timezone else 'UTC', '%d/%m/%Y %H:%M') }}</span>
           </div>
           <p style="white-space: pre-wrap; margin: 0;">{{ comment.content }}</p>
           
@@ -547,7 +547,7 @@
         {% for history_entry, editor in history %}
         <div style="border-left: 2px solid #e5e7eb; padding-left: 0.75rem; margin-bottom: 1rem;">
           <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem;">
-            {{ utc_to_local(history_entry.created_at).strftime('%d/%m/%Y %H:%M') }}
+            {{ history_entry.created_at | format_datetime_tz(workspace.timezone if workspace and workspace.timezone else 'UTC', '%d/%m/%Y %H:%M') }}
           </div>
           <div style="font-weight: 500; margin-bottom: 0.25rem;">
             {{ editor.full_name or editor.username }}

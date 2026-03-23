@@ -76,40 +76,28 @@ def enhanced_template_response(name: str, context: dict, *args, **kwargs):
 # Replace the TemplateResponse method - this affects ALL template calls
 templates.TemplateResponse = enhanced_template_response
 
-# Convert UTC datetime to local time for display
-def utc_to_local(utc_dt):
-    """Convert UTC datetime to local time"""
-    if utc_dt is None:
-        return None
-    # Get the local timezone offset
-    import time
-    if time.daylight:
-        offset_seconds = time.altzone
-    else:
-        offset_seconds = time.timezone
-    # Calculate local time
-    from datetime import timedelta
-    local_dt = utc_dt - timedelta(seconds=offset_seconds)
-    return local_dt
-
-# Default timezone for the website - UTC+2 (Africa/Johannesburg)
-DEFAULT_TIMEZONE = "Africa/Johannesburg"
-
 def format_datetime_tz(dt, tz_name=None, format_str="%Y-%m-%d %H:%M"):
-    """Convert UTC datetime to specified timezone and format it
+    """Convert UTC datetime to specified timezone and format it.
     
-    Note: If tz_name is None, empty, or 'UTC', we use the DEFAULT_TIMEZONE (UTC+2)
-    to ensure consistent time display across the website.
+    The tz_name should come from the workspace timezone setting.
+    If tz_name is None or empty, defaults to UTC (no conversion).
     """
     if dt is None:
         return ""
     
-    # Always default to Africa/Johannesburg (UTC+2) if no timezone specified or UTC
-    if not tz_name or tz_name == "UTC":
-        tz_name = DEFAULT_TIMEZONE
+    # If no timezone specified, default to UTC (no offset applied)
+    if not tz_name:
+        tz_name = "UTC"
     
-    # Handle UTC specially to avoid tzdata dependency issues on Windows
     from datetime import timezone as dt_timezone
+    
+    # Handle UTC directly without needing pytz/zoneinfo
+    if tz_name == "UTC":
+        if isinstance(dt, datetime):
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=dt_timezone.utc)
+            return dt.strftime(format_str)
+        return dt.strftime(format_str) if isinstance(dt, datetime) else str(dt)
     
     try:
         from zoneinfo import ZoneInfo
@@ -123,10 +111,7 @@ def format_datetime_tz(dt, tz_name=None, format_str="%Y-%m-%d %H:%M"):
         if isinstance(dt, datetime):
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=pytz.UTC)
-            if tz_name == "UTC":
-                target_tz = pytz.UTC
-            else:
-                target_tz = pytz.timezone(tz_name)
+            target_tz = pytz.timezone(tz_name)
             local_dt = dt.astimezone(target_tz)
             return local_dt.strftime(format_str)
     except ImportError:
@@ -137,7 +122,6 @@ def format_datetime_tz(dt, tz_name=None, format_str="%Y-%m-%d %H:%M"):
         try:
             if isinstance(dt, datetime):
                 if dt.tzinfo is None:
-                    # Use datetime.timezone.utc instead of ZoneInfo("UTC")
                     dt = dt.replace(tzinfo=dt_timezone.utc)
                 target_tz = ZoneInfo(tz_name)  # type: ignore[possibly-undefined]
                 local_dt = dt.astimezone(target_tz)
@@ -145,19 +129,11 @@ def format_datetime_tz(dt, tz_name=None, format_str="%Y-%m-%d %H:%M"):
         except Exception:
             pass
     
-    # Ultimate fallback - manually apply UTC+2 offset
+    # Ultimate fallback - treat as UTC (no offset) to avoid wrong times
     if isinstance(dt, datetime):
-        try:
-            from datetime import timedelta
-            # Apply UTC+2 offset manually (Africa/Johannesburg = UTC+2)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=dt_timezone.utc)
-            # Create UTC+2 timezone
-            utc_plus_2 = dt_timezone(timedelta(hours=2))
-            local_dt = dt.astimezone(utc_plus_2)
-            return local_dt.strftime(format_str)
-        except Exception:
-            pass
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=dt_timezone.utc)
+        return dt.strftime(format_str)
     
     # Last resort - just format as-is
     return dt.strftime(format_str) if isinstance(dt, datetime) else str(dt)
@@ -175,7 +151,6 @@ async def get_workspace_for_user(user_id: int, db: AsyncSession) -> Optional[Wor
 
 # Add helper functions to Jinja2 globals for use in templates
 templates.env.globals['now'] = datetime.utcnow
-templates.env.globals['utc_to_local'] = utc_to_local
 
 # Add timezone formatting filter
 templates.env.filters['format_datetime_tz'] = format_datetime_tz
@@ -2616,7 +2591,7 @@ async def web_admin_generate_user_activity_pdf(
                     try:
                         self.created_at = datetime.fromisoformat(created_at_val.replace('Z', '+00:00'))
                     except Exception:
-                        self.created_at = datetime.now()
+                        self.created_at = datetime.utcnow()
                 else:
                     self.created_at = created_at_val
         task_edits = [TaskEditRow(row) for row in task_edits_raw]
@@ -3691,7 +3666,7 @@ async def web_admin_user_activity_view(
                     try:
                         self.created_at = datetime.fromisoformat(created_at_val.replace('Z', '+00:00'))
                     except Exception:
-                        self.created_at = datetime.now()
+                        self.created_at = datetime.utcnow()
                 else:
                     self.created_at = created_at_val
         task_edits = [TaskEditRow(row) for row in task_edits_raw]
@@ -3968,7 +3943,7 @@ async def web_admin_user_activity_view(
             'workspace': workspace,
             'start_date': start_dt.strftime('%Y-%m-%d'),
             'end_date': (end_dt - timedelta(days=1)).strftime('%Y-%m-%d'),
-            'now': datetime.now(),
+            'now': datetime.utcnow(),
             'summary': summary,
             'metrics': metrics,
             'overdue_tasks': sorted(overdue_tasks, key=lambda x: x['days_overdue'], reverse=True),
@@ -10034,7 +10009,7 @@ async def web_tickets_report(
             'workspace': workspace,
             'start_date': start_dt.strftime('%Y-%m-%d'),
             'end_date': (end_dt - timedelta(days=1)).strftime('%Y-%m-%d'),
-            'now': datetime.now(),
+            'now': datetime.utcnow(),
             'summary': summary,
             'agents': agents,
             'status_distribution': status_distribution,
