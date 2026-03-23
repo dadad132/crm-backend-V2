@@ -958,9 +958,13 @@ class EmailToTicketService:
                 print(f"[Email Attachment] Failed to save attachments for ticket {ticket.id}: {e}")
                 _syslog('ERROR', 'IMAP', 'Attachment save failed (comment)', f'Ticket={ticket.id} | Error={str(e)[:200]}')
         
+        # Capture before commit — attributes expire on commit with direct AsyncSession
+        ticket_num = ticket.ticket_number
+        ws_id = ticket.workspace_id
+        
         await db.commit()
         await db.refresh(comment)
-        _syslog('INFO', 'IMAP', f'Comment added to ticket #{ticket.ticket_number}', f'From={sender_email} | CommentID={comment.id}', ticket.workspace_id)
+        _syslog('INFO', 'IMAP', f'Comment added to ticket #{ticket_num}', f'From={sender_email} | CommentID={comment.id}', ws_id)
         
         return comment
     
@@ -1501,9 +1505,13 @@ async def add_comment_from_email_for_account(
             print(f"[Email Attachment] Failed to save attachments for ticket {ticket.id}: {e}")
             _syslog('ERROR', 'Email Account', 'Attachment save failed (comment)', f'Ticket={ticket.id} | Error={str(e)[:200]}')
     
+    # Capture before commit — attributes expire on commit with direct AsyncSession
+    ticket_num = ticket.ticket_number
+    ws_id = ticket.workspace_id
+    
     await db.commit()
     await db.refresh(comment)
-    _syslog('INFO', 'Email Account', f'Comment added to ticket #{ticket.ticket_number}', f'From={sender_email} | CommentID={comment.id}', ticket.workspace_id)
+    _syslog('INFO', 'Email Account', f'Comment added to ticket #{ticket_num}', f'From={sender_email} | CommentID={comment.id}', ws_id)
     
     return comment
 
