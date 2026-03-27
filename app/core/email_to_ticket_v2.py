@@ -1102,7 +1102,17 @@ class EmailToTicketService:
                         smtp_from = (self.settings.smtp_from_email or '').lower() if hasattr(self.settings, 'smtp_from_email') else ''
                         own_addresses = {addr for addr in [own_email, smtp_from] if addr}
                         is_from_self = sender_email and sender_email.lower() in own_addresses
-                        is_to_self = to_email and to_email.lower() in own_addresses
+                        # Check ALL recipient headers — Google Workspace delivers via aliases,
+                        # groups, CC, and Delivered-To which parseaddr() on To: alone misses
+                        all_recipient_emails = set()
+                        for hdr_name in ('To', 'Cc', 'Delivered-To', 'X-Original-To', 'X-Forwarded-To'):
+                            hdr_val = msg.get(hdr_name, '')
+                            if hdr_val:
+                                from email.utils import getaddresses
+                                for _, addr in getaddresses([hdr_val]):
+                                    if addr:
+                                        all_recipient_emails.add(addr.lower())
+                        is_to_self = bool(own_addresses & all_recipient_emails)
                         if is_from_self and not is_to_self:
                             print(f"[IMAP] ⏭️ SKIPPING: Outgoing reply from our address ({sender_email}) to external ({to_email})")
                             _syslog('INFO', 'IMAP', 'Skipped own outgoing email', f'From={sender_email}')
@@ -1793,7 +1803,17 @@ async def process_email_account(db: AsyncSession, account) -> List[Ticket]:
                     # (self-addressed emails like form notifications, toner requests etc. should still be processed)
                     own_addresses = {imap_username.lower(), account_email.lower()}
                     is_from_self = sender_email_addr and sender_email_addr in own_addresses
-                    is_to_self = to_email_addr and to_email_addr in own_addresses
+                    # Check ALL recipient headers — Google Workspace delivers via aliases,
+                    # groups, CC, and Delivered-To which parseaddr() on To: alone misses
+                    all_recipient_emails = set()
+                    for hdr_name in ('To', 'Cc', 'Delivered-To', 'X-Original-To', 'X-Forwarded-To'):
+                        hdr_val = msg.get(hdr_name, '')
+                        if hdr_val:
+                            from email.utils import getaddresses
+                            for _, addr in getaddresses([hdr_val]):
+                                if addr:
+                                    all_recipient_emails.add(addr.lower())
+                    is_to_self = bool(own_addresses & all_recipient_emails)
                     if is_from_self and not is_to_self:
                         print(f"[Email Account] ⏭️ SKIPPING: Email sent from our own address ({sender_email_addr}) to external recipient ({to_email_addr})")
                         _syslog('INFO', 'Email Account', 'Skipped own outgoing email', f'From={sender_email_addr}', workspace_id)
