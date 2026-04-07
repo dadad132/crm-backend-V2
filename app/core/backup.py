@@ -152,6 +152,35 @@ class DatabaseBackup:
         except Exception as e:
             logger.error(f"Error cleaning up old uploaded backups: {e}")
     
+    def _cleanup_corrupted_uploads(self):
+        """Remove old corrupted_uploads directories, keeping only the most recent one"""
+        try:
+            corrupted_dirs = sorted(
+                [d for d in self.backup_dir.iterdir() if d.is_dir() and d.name.startswith('corrupted_uploads_')],
+                key=lambda x: x.stat().st_mtime,
+                reverse=True
+            )
+            # Keep only the most recent corrupted uploads dir
+            for old_dir in corrupted_dirs[1:]:
+                shutil.rmtree(old_dir)
+                logger.info(f"🗑️  Removed old corrupted uploads: {old_dir.name}")
+        except Exception as e:
+            logger.error(f"Error cleaning up corrupted uploads: {e}")
+
+    def _cleanup_orphan_backups(self):
+        """Remove backup files with non-standard prefixes that escape normal retention cleanup"""
+        try:
+            known_prefixes = ('backup_AUTO_', 'backup_MANUAL_', 'backup_UPLOADED_', 'backup_latest', 'data_latest', 'corrupted_')
+            orphans = [
+                f for f in self.backup_dir.iterdir()
+                if f.is_file() and not any(f.name.startswith(p) for p in known_prefixes)
+            ]
+            for orphan in orphans:
+                orphan.unlink()
+                logger.info(f"🗑️  Removed orphan backup: {orphan.name}")
+        except Exception as e:
+            logger.error(f"Error cleaning up orphan backups: {e}")
+
     def cleanup_all_old_backups(self):
         """Run cleanup for all backup types - enforces all retention limits
         
@@ -159,11 +188,15 @@ class DatabaseBackup:
         - Auto backups: 10
         - Manual backups: 15
         - Uploaded backups: 5
+        - Corrupted uploads dirs: 1 (most recent only)
+        - Orphan backups (non-standard names): all removed
         """
         logger.info("🧹 Running full backup cleanup...")
         self._cleanup_old_backups()
         self._cleanup_old_manual_backups()
         self._cleanup_old_uploaded_backups()
+        self._cleanup_corrupted_uploads()
+        self._cleanup_orphan_backups()
         logger.info("🧹 Backup cleanup complete")
     
     def delete_backup(self, filename: str) -> bool:

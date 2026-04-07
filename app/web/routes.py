@@ -16953,3 +16953,267 @@ async def web_kb_resolved_rate(
             case.not_helpful_votes += 1
         await db.commit()
     return RedirectResponse(url=f'/web/knowledge-base/resolved/{case_id}', status_code=303)
+
+
+# ─── Storage Management ─────────────────────────────────────────────
+@router.get('/admin/storage', response_class=HTMLResponse)
+async def web_admin_storage(request: Request, db: AsyncSession = Depends(get_session)):
+    """Storage usage breakdown and management for admins"""
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return RedirectResponse('/web/login', status_code=303)
+
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user or not user.is_active:
+        request.session.clear()
+        return RedirectResponse('/web/login', status_code=303)
+
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    import sqlite3
+    from app.models.ticket import Ticket, TicketAttachment
+    from app.models.system_log import SystemLog
+    from sqlalchemy import func as sa_func
+
+    storage = {}
+
+    # --- Database file size ---
+    db_path = Path('data.db')
+    storage['database_size_mb'] = round(db_path.stat().st_size / (1024 * 1024), 2) if db_path.exists() else 0
+
+    # --- Uploads folder breakdown ---
+    uploads_root = Path('app/uploads')
+    upload_folders = []
+    uploads_total = 0
+    if uploads_root.exists():
+        for child in sorted(uploads_root.iterdir()):
+            if child.is_dir():
+                files = list(child.rglob('*'))
+                file_list = [f for f in files if f.is_file()]
+                folder_size = sum(f.stat().st_size for f in file_list)
+                uploads_total += folder_size
+                upload_folders.append({
+                    'name': child.name,
+                    'file_count': len(file_list),
+                    'size_mb': round(folder_size / (1024 * 1024), 2),
+                    'size_bytes': folder_size,
+                })
+        # Root-level files in uploads
+        root_files = [f for f in uploads_root.iterdir() if f.is_file()]
+        if root_files:
+            root_size = sum(f.stat().st_size for f in root_files)
+            uploads_total += root_size
+            upload_folders.append({
+                'name': '(root files)',
+                'file_count': len(root_files),
+                'size_mb': round(root_size / (1024 * 1024), 2),
+                'size_bytes': root_size,
+            })
+    # Calculate percentages
+    for f in upload_folders:
+        f['percent'] = round(f['size_bytes'] / uploads_total * 100, 1) if uploads_total > 0 else 0
+    upload_folders.sort(key=lambda x: x['size_bytes'], reverse=True)
+    storage['uploads_size_mb'] = round(uploads_total / (1024 * 1024), 2)
+    storage['upload_folders'] = upload_folders
+
+    # --- Backups breakdown ---
+    backup_dir = Path('backups')
+    backup_categories = []
+    backups_total = 0
+    if backup_dir.exists():
+        categories = {}
+        for item in backup_dir.iterdir():
+            if item.is_file():
+                if '_AUTO_' in item.name:
+                    cat = 'Automatic Backups'
+                elif '_MANUAL_' in item.name:
+                    cat = 'Manual Backups'
+                elif '_UPLOADED_' in item.name:
+                    cat = 'Uploaded Backups'
+                elif 'latest' in item.name:
+                    cat = 'Latest Backup Copy'
+                elif 'corrupted' in item.name:
+                    cat = 'Corrupted DB Saves'
+                else:
+                    cat = 'Other / Orphan Files'
+                size = item.stat().st_size
+                if cat not in categories:
+                    categories[cat] = {'count': 0, 'size': 0}
+                categories[cat]['count'] += 1
+                categories[cat]['size'] += size
+                backups_total += size
+            elif item.is_dir():
+                dir_size = sum(f.stat().st_size for f in item.rglob('*') if f.is_file())
+                cat = 'Corrupted Uploads Dirs'
+                if cat not in categories:
+                    categories[cat] = {'count': 0, 'size': 0}
+                categories[cat]['count'] += 1
+                categories[cat]['size'] += dir_size
+                backups_total += dir_size
+        for name, data in sorted(categories.items(), key=lambda x: x[1]['size'], reverse=True):
+            backup_categories.append({
+                'name': name,
+                'count': data['count'],
+                'size_mb': round(data['size'] / (1024 * 1024), 2),
+                'percent': round(data['size'] / backups_total * 100, 1) if backups_total > 0 else 0,
+            })
+    storage['backups_size_mb'] = round(backups_total / (1024 * 1024), 2)
+    storage['backup_categories'] = backup_categories
+
+    # --- Total ---
+    storage['total_size_mb'] = round(storage['database_size_mb'] + storage['uploads_size_mb'] + storage['backups_size_mb'], 2)
+
+    # --- System log count ---
+    try:
+        log_count_result = await db.execute(select(sa_func.count()).select_from(SystemLog))
+        storage['system_log_count'] = log_count_result.scalar() or 0
+    except Exception:
+        storage['system_log_count'] = 0
+
+    # --- Database table row counts ---
+    table_counts = []
+    try:
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        tables = [row[0] for row in cursor.fetchall() if not row[0].startswith('_')]
+        for tbl in tables:
+            try:
+                cursor.execute(f'SELECT COUNT(*) FROM "{tbl}"')
+                count = cursor.fetchone()[0]
+                table_counts.append({'name': tbl, 'count': count})
+            except Exception:
+                table_counts.append({'name': tbl, 'count': '?'})
+        conn.close()
+        table_counts.sort(key=lambda x: x['count'] if isinstance(x['count'], int) else 0, reverse=True)
+    except Exception:
+        pass
+    storage['table_counts'] = table_counts
+
+    # --- Top 20 tickets by attachment size ---
+    top_tickets = []
+    try:
+        result = await db.execute(
+            select(
+                Ticket.id,
+                Ticket.ticket_number,
+                Ticket.subject,
+                Ticket.status,
+                Ticket.is_archived,
+                sa_func.count(TicketAttachment.id).label('attachment_count'),
+                sa_func.coalesce(sa_func.sum(TicketAttachment.file_size), 0).label('total_size')
+            )
+            .join(TicketAttachment, TicketAttachment.ticket_id == Ticket.id)
+            .group_by(Ticket.id)
+            .order_by(sa_func.sum(TicketAttachment.file_size).desc())
+            .limit(20)
+        )
+        for row in result.all():
+            top_tickets.append({
+                'id': row.id,
+                'ticket_number': row.ticket_number,
+                'subject': row.subject,
+                'status': row.status,
+                'is_archived': row.is_archived,
+                'attachment_count': row.attachment_count,
+                'total_size_mb': round(row.total_size / (1024 * 1024), 2),
+            })
+    except Exception as e:
+        logger.error(f"Error fetching top tickets: {e}")
+
+    # --- Archived tickets with attachment info ---
+    archived_tickets = []
+    try:
+        result = await db.execute(
+            select(
+                Ticket.id,
+                Ticket.ticket_number,
+                Ticket.subject,
+                Ticket.archived_at,
+                sa_func.count(TicketAttachment.id).label('attachment_count'),
+                sa_func.coalesce(sa_func.sum(TicketAttachment.file_size), 0).label('total_size')
+            )
+            .outerjoin(TicketAttachment, TicketAttachment.ticket_id == Ticket.id)
+            .where(Ticket.is_archived == True)
+            .group_by(Ticket.id)
+            .order_by(sa_func.coalesce(sa_func.sum(TicketAttachment.file_size), 0).desc())
+        )
+        for row in result.all():
+            archived_tickets.append({
+                'id': row.id,
+                'ticket_number': row.ticket_number,
+                'subject': row.subject,
+                'archived_at': row.archived_at,
+                'attachment_count': row.attachment_count,
+                'total_size_mb': round(row.total_size / (1024 * 1024), 2),
+            })
+    except Exception as e:
+        logger.error(f"Error fetching archived tickets: {e}")
+
+    return templates.TemplateResponse('admin/storage.html', {
+        'request': request,
+        'user': user,
+        'storage': storage,
+        'top_tickets': top_tickets,
+        'archived_tickets': archived_tickets,
+    })
+
+
+@router.post('/admin/storage/delete-archived')
+async def web_admin_storage_delete_archived(request: Request, db: AsyncSession = Depends(get_session)):
+    """Permanently delete selected archived tickets and their attachments"""
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return RedirectResponse('/web/login', status_code=303)
+
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user or not user.is_active or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    from app.models.ticket import Ticket, TicketAttachment, TicketComment, TicketHistory
+    from sqlalchemy import delete as sa_delete
+
+    form = await request.form()
+    ticket_ids = [int(tid) for tid in form.getlist('ticket_ids') if tid.isdigit()]
+
+    if not ticket_ids:
+        return RedirectResponse('/web/admin/storage?error=no_selection', status_code=303)
+
+    try:
+        deleted_count = 0
+        for tid in ticket_ids:
+            # Verify ticket exists and is archived
+            ticket = (await db.execute(
+                select(Ticket).where(Ticket.id == tid, Ticket.is_archived == True)
+            )).scalar_one_or_none()
+            if not ticket:
+                continue
+
+            # Delete attachment files from disk
+            attachments = (await db.execute(
+                select(TicketAttachment).where(TicketAttachment.ticket_id == tid)
+            )).scalars().all()
+            for att in attachments:
+                try:
+                    file_path = Path(att.file_path)
+                    if file_path.exists():
+                        file_path.unlink()
+                        logger.info(f"Deleted attachment file: {att.file_path}")
+                except Exception as e:
+                    logger.warning(f"Could not delete attachment file {att.file_path}: {e}")
+
+            # Delete DB records: attachments, comments, history, then ticket
+            await db.execute(sa_delete(TicketAttachment).where(TicketAttachment.ticket_id == tid))
+            await db.execute(sa_delete(TicketComment).where(TicketComment.ticket_id == tid))
+            await db.execute(sa_delete(TicketHistory).where(TicketHistory.ticket_id == tid))
+            await db.execute(sa_delete(Ticket).where(Ticket.id == tid))
+            deleted_count += 1
+
+        await db.commit()
+        logger.info(f"Admin {user.username} permanently deleted {deleted_count} archived tickets")
+        return RedirectResponse(f'/web/admin/storage?success=tickets_deleted&count={deleted_count}', status_code=303)
+    except Exception as e:
+        logger.error(f"Error deleting archived tickets: {e}")
+        await db.rollback()
+        return RedirectResponse('/web/admin/storage?error=delete_failed', status_code=303)
