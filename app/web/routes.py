@@ -8892,6 +8892,37 @@ async def web_task_delete(request: Request, task_id: int, db: AsyncSession = Dep
     
     project_id = task.project_id
     
+    # Delete attachment files from disk before cascade removes DB records
+    from app.models.task_extensions import TaskAttachment
+    task_attachments = (await db.execute(
+        select(TaskAttachment).where(TaskAttachment.task_id == task_id)
+    )).scalars().all()
+    for att in task_attachments:
+        try:
+            p = Path(att.file_path)
+            if p.exists():
+                p.unlink()
+        except Exception:
+            pass
+    
+    # Also clean up comment attachment files for this task's comments
+    from app.models.comment import Comment
+    task_comments = (await db.execute(
+        select(Comment).where(Comment.task_id == task_id)
+    )).scalars().all()
+    comment_ids = [c.id for c in task_comments]
+    if comment_ids:
+        comment_attachments = (await db.execute(
+            select(CommentAttachment).where(CommentAttachment.comment_id.in_(comment_ids))
+        )).scalars().all()
+        for att in comment_attachments:
+            try:
+                p = Path(att.file_path)
+                if p.exists():
+                    p.unlink()
+            except Exception:
+                pass
+    
     # Delete the task (cascade will handle assignments, comments, etc.)
     await db.delete(task)
     await db.commit()

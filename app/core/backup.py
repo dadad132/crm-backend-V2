@@ -5,14 +5,31 @@ Includes database + attachments (comments and chat messages)
 import os
 import shutil
 import asyncio
+import sqlite3
 import zipfile
 import lzma
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Set
 import logging
 
 logger = logging.getLogger(__name__)
+
+# File extensions that are already compressed — storing them without
+# additional compression is faster and barely affects archive size.
+_INCOMPRESSIBLE_EXTENSIONS: Set[str] = {
+    # Images
+    '.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.heic', '.heif',
+    '.ico', '.svg',
+    # Video / audio
+    '.mp4', '.mkv', '.webm', '.avi', '.mov', '.mp3', '.aac', '.ogg',
+    '.flac', '.m4a', '.opus',
+    # Archives
+    '.zip', '.gz', '.bz2', '.xz', '.7z', '.rar', '.zst', '.tar.gz',
+    '.tgz', '.tar.bz2',
+    # Documents (internally compressed)
+    '.pdf', '.docx', '.xlsx', '.pptx', '.odt', '.ods', '.epub',
+}
 
 
 class DatabaseBackup:
@@ -40,6 +57,30 @@ class DatabaseBackup:
         extension = ".zip" if include_attachments else ".db"
         return f"backup_{backup_type}_{timestamp}{extension}"
     
+    @staticmethod
+    def _vacuum_database(db_path: str) -> int:
+        """VACUUM the SQLite database to reclaim free pages.
+        
+        Returns bytes saved (can be 0 if already compact).
+        """
+        path = Path(db_path)
+        if not path.exists():
+            return 0
+        size_before = path.stat().st_size
+        try:
+            conn = sqlite3.connect(db_path, timeout=60)
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            conn.execute("VACUUM")
+            conn.close()
+            size_after = path.stat().st_size
+            saved = size_before - size_after
+            if saved > 0:
+                logger.info(f"🗜️  VACUUM reclaimed {saved / (1024*1024):.1f} MB from database")
+            return max(saved, 0)
+        except Exception as e:
+            logger.warning(f"VACUUM skipped (non-critical): {e}")
+            return 0
+
     def create_backup(self, is_manual: bool = False, include_attachments: bool = True) -> Optional[Path]:
         """Create a backup of the database and optionally attachments
         
@@ -52,28 +93,40 @@ class DatabaseBackup:
             return None
         
         try:
+            # Compact the database first — reclaims space from deleted rows
+            self.backup_progress = 'Compacting database (VACUUM)...'
+            self._vacuum_database(str(self.db_path))
+            
             backup_file = self.backup_dir / self.get_backup_filename(is_manual=is_manual, include_attachments=include_attachments)
             backup_type = "MANUAL" if is_manual else "AUTO"
             
             if include_attachments:
+                # Clean up orphan attachment files before backing up
+                self._cleanup_orphan_attachment_files()
+                
                 # Collect files first so we can track progress
                 files_to_add = []
                 if self.uploads_dir.exists():
                     files_to_add = [f for f in self.uploads_dir.rglob('*') if f.is_file()]
                 total_files = len(files_to_add) + 1  # +1 for database
                 
-                # Create ZIP archive with database + attachments using LZMA compression
-                # LZMA gives significantly smaller files than DEFLATE (~30-50% smaller)
+                # Create ZIP archive with database + attachments
+                # Use LZMA for compressible files (database, text)
+                # Use STORED for already-compressed files (images, PDFs, videos)
                 with zipfile.ZipFile(backup_file, 'w', zipfile.ZIP_LZMA) as zipf:
-                    # Add database
+                    # Add database (always LZMA — SQLite compresses very well)
                     self.backup_progress = f'Compressing database (1/{total_files})'
                     zipf.write(self.db_path, arcname='data.db')
                     
-                    # Add all attachments
+                    # Add all attachments with smart compression
                     for i, file_path in enumerate(files_to_add, start=2):
                         self.backup_progress = f'Compressing file {i}/{total_files}'
                         arcname = str(file_path.relative_to(self.uploads_dir.parent))
-                        zipf.write(file_path, arcname=arcname)
+                        # Skip compression for already-compressed file types
+                        if file_path.suffix.lower() in _INCOMPRESSIBLE_EXTENSIONS:
+                            zipf.write(file_path, arcname=arcname, compress_type=zipfile.ZIP_STORED)
+                        else:
+                            zipf.write(file_path, arcname=arcname)
                 
                 # Log backup size
                 backup_size_mb = backup_file.stat().st_size / (1024 * 1024)
@@ -181,6 +234,75 @@ class DatabaseBackup:
         except Exception as e:
             logger.error(f"Error cleaning up orphan backups: {e}")
 
+    def _cleanup_orphan_attachment_files(self):
+        """Remove attachment files on disk that no longer have a matching DB record.
+        
+        Safety measures:
+        - Matches on filename (UUID-based, globally unique) to avoid path format issues
+        - Skips files younger than 1 hour to avoid race conditions with active uploads
+        - Skips non-attachment directories (branding, profile_pictures)
+        - Queries ALL attachment tables including chat message attachments
+        """
+        if not self.uploads_dir.exists():
+            return
+        try:
+            import time
+            one_hour_ago = time.time() - 3600
+            
+            conn = sqlite3.connect(str(self.db_path), timeout=30)
+            cursor = conn.cursor()
+            
+            # Collect all known filenames from every attachment table
+            # Using filenames (UUIDs) instead of full paths avoids format mismatches
+            known_filenames: Set[str] = set()
+            attachment_tables = [
+                'ticketattachment',
+                'taskattachment',
+                'comment_attachment',
+                'messageattachment',
+            ]
+            for table in attachment_tables:
+                try:
+                    cursor.execute(f"SELECT file_path FROM {table}")
+                    for (path,) in cursor.fetchall():
+                        if path:
+                            # Extract just the filename from the stored path
+                            known_filenames.add(Path(path).name)
+                except Exception:
+                    pass  # Table may not exist yet
+            
+            conn.close()
+            
+            if not known_filenames:
+                # If we got zero filenames, something is wrong — don't delete anything
+                return
+            
+            # Walk the uploads directory and remove files not referenced in DB
+            # Skip directories that aren't attachment storage (branding, profile_pictures)
+            attachment_dirs = {'tickets', 'tasks', 'comments', 'chat_messages'}
+            removed_count = 0
+            removed_bytes = 0
+            
+            for subdir in self.uploads_dir.iterdir():
+                if not subdir.is_dir() or subdir.name not in attachment_dirs:
+                    continue
+                for file_path in subdir.rglob('*'):
+                    if not file_path.is_file():
+                        continue
+                    # Skip recently created files (upload might still be in progress)
+                    if file_path.stat().st_mtime > one_hour_ago:
+                        continue
+                    if file_path.name not in known_filenames:
+                        file_size = file_path.stat().st_size
+                        file_path.unlink()
+                        removed_count += 1
+                        removed_bytes += file_size
+            
+            if removed_count > 0:
+                logger.info(f"🗑️  Removed {removed_count} orphan attachment files ({removed_bytes / (1024*1024):.1f} MB)")
+        except Exception as e:
+            logger.warning(f"Orphan attachment cleanup error (non-critical): {e}")
+
     def cleanup_all_old_backups(self):
         """Run cleanup for all backup types - enforces all retention limits
         
@@ -190,6 +312,7 @@ class DatabaseBackup:
         - Uploaded backups: 5
         - Corrupted uploads dirs: 1 (most recent only)
         - Orphan backups (non-standard names): all removed
+        - Orphan attachment files on disk: removed
         """
         logger.info("🧹 Running full backup cleanup...")
         self._cleanup_old_backups()
@@ -197,6 +320,7 @@ class DatabaseBackup:
         self._cleanup_old_uploaded_backups()
         self._cleanup_corrupted_uploads()
         self._cleanup_orphan_backups()
+        self._cleanup_orphan_attachment_files()
         logger.info("🧹 Backup cleanup complete")
     
     def delete_backup(self, filename: str) -> bool:

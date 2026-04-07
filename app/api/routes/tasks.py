@@ -175,6 +175,40 @@ async def delete_task(task_id: int, user_id: int = Depends(get_current_user_id),
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    
+    # Delete attachment files from disk before cascade removes DB records
+    from pathlib import Path
+    from app.models.task_extensions import TaskAttachment
+    from app.models.comment import Comment
+    from app.models.comment_attachment import CommentAttachment
+    
+    task_attachments = (await db.execute(
+        select(TaskAttachment).where(TaskAttachment.task_id == task_id)
+    )).scalars().all()
+    for att in task_attachments:
+        try:
+            p = Path(att.file_path)
+            if p.exists():
+                p.unlink()
+        except Exception:
+            pass
+    
+    task_comments = (await db.execute(
+        select(Comment).where(Comment.task_id == task_id)
+    )).scalars().all()
+    comment_ids = [c.id for c in task_comments]
+    if comment_ids:
+        comment_attachments = (await db.execute(
+            select(CommentAttachment).where(CommentAttachment.comment_id.in_(comment_ids))
+        )).scalars().all()
+        for att in comment_attachments:
+            try:
+                p = Path(att.file_path)
+                if p.exists():
+                    p.unlink()
+            except Exception:
+                pass
+    
     await db.delete(task)
     await db.commit()
     return None
