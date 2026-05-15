@@ -9665,30 +9665,55 @@ async def web_tickets_report(
     # Get all comments for these tickets
     all_comments = []
     if ticket_ids:
-        comment_query = select(TicketComment).where(TicketComment.ticket_id.in_(ticket_ids))
+        comment_query = (
+            select(TicketComment)
+            .join(Ticket, TicketComment.ticket_id == Ticket.id)
+            .where(
+                Ticket.workspace_id == user.workspace_id,
+                Ticket.created_at >= start_dt,
+                Ticket.created_at < end_dt,
+            )
+        )
         if selected_user_id:
-            # Only show comments by this user
             comment_query = comment_query.where(TicketComment.user_id == selected_user_id)
+        if selected_project_id:
+            comment_query = comment_query.where(Ticket.related_project_id == selected_project_id)
         all_comments = (await db.execute(comment_query.order_by(TicketComment.created_at.desc()))).scalars().all()
     
     # Get ticket history
     all_history = []
-    all_history_for_closures = []  # Unfiltered history to determine who closed tickets
+    all_history_for_closures = []
     if ticket_ids:
-        # Get history for display (filtered by user if selected)
-        history_query = select(TicketHistory).where(TicketHistory.ticket_id.in_(ticket_ids))
-        if selected_user_id:
-            history_query = history_query.where(TicketHistory.user_id == selected_user_id)
-        all_history = (await db.execute(history_query.order_by(TicketHistory.created_at.desc()))).scalars().all()
-        
-        # Get ALL history to determine who closed each ticket (not filtered by user)
-        closure_query = select(TicketHistory).where(
-            TicketHistory.ticket_id.in_(ticket_ids),
-            or_(
-                TicketHistory.action == 'closed',
-                and_(TicketHistory.action == 'status_changed', TicketHistory.new_value == 'closed')
+        history_query = (
+            select(TicketHistory)
+            .join(Ticket, TicketHistory.ticket_id == Ticket.id)
+            .where(
+                Ticket.workspace_id == user.workspace_id,
+                Ticket.created_at >= start_dt,
+                Ticket.created_at < end_dt,
             )
         )
+        if selected_user_id:
+            history_query = history_query.where(TicketHistory.user_id == selected_user_id)
+        if selected_project_id:
+            history_query = history_query.where(Ticket.related_project_id == selected_project_id)
+        all_history = (await db.execute(history_query.order_by(TicketHistory.created_at.desc()))).scalars().all()
+        
+        closure_query = (
+            select(TicketHistory)
+            .join(Ticket, TicketHistory.ticket_id == Ticket.id)
+            .where(
+                Ticket.workspace_id == user.workspace_id,
+                Ticket.created_at >= start_dt,
+                Ticket.created_at < end_dt,
+                or_(
+                    TicketHistory.action == 'closed',
+                    and_(TicketHistory.action == 'status_changed', TicketHistory.new_value == 'closed')
+                )
+            )
+        )
+        if selected_project_id:
+            closure_query = closure_query.where(Ticket.related_project_id == selected_project_id)
         all_history_for_closures = (await db.execute(closure_query)).scalars().all()
     
     # Create ticket lookup
@@ -10153,9 +10178,19 @@ async def web_tickets_report_pdf(
     # Get all comments (filtered by user if specified)
     all_comments = []
     if ticket_ids:
-        comment_query = select(TicketComment).where(TicketComment.ticket_id.in_(ticket_ids))
+        comment_query = (
+            select(TicketComment)
+            .join(Ticket, TicketComment.ticket_id == Ticket.id)
+            .where(
+                Ticket.workspace_id == user.workspace_id,
+                Ticket.created_at >= start_dt,
+                Ticket.created_at < end_dt,
+            )
+        )
         if user_id_int:
             comment_query = comment_query.where(TicketComment.user_id == user_id_int)
+        if project_id_int:
+            comment_query = comment_query.where(Ticket.related_project_id == project_id_int)
         all_comments = (await db.execute(comment_query.order_by(TicketComment.created_at.desc()))).scalars().all()
     
     # Get all users for lookups
@@ -10524,17 +10559,37 @@ async def web_tickets_report_excel(
     # Get all comments (filtered by user if specified)
     all_comments = []
     if ticket_ids:
-        comment_query = select(TicketComment).where(TicketComment.ticket_id.in_(ticket_ids))
+        comment_query = (
+            select(TicketComment)
+            .join(Ticket, TicketComment.ticket_id == Ticket.id)
+            .where(
+                Ticket.workspace_id == user.workspace_id,
+                Ticket.created_at >= start_dt,
+                Ticket.created_at < end_dt,
+            )
+        )
         if user_id_int:
             comment_query = comment_query.where(TicketComment.user_id == user_id_int)
+        if project_id_int:
+            comment_query = comment_query.where(Ticket.related_project_id == project_id_int)
         all_comments = (await db.execute(comment_query.order_by(TicketComment.created_at.desc()))).scalars().all()
     
     # Get ticket history (filtered by user if specified)
     all_history = []
     if ticket_ids:
-        history_query = select(TicketHistory).where(TicketHistory.ticket_id.in_(ticket_ids))
+        history_query = (
+            select(TicketHistory)
+            .join(Ticket, TicketHistory.ticket_id == Ticket.id)
+            .where(
+                Ticket.workspace_id == user.workspace_id,
+                Ticket.created_at >= start_dt,
+                Ticket.created_at < end_dt,
+            )
+        )
         if user_id_int:
             history_query = history_query.where(TicketHistory.user_id == user_id_int)
+        if project_id_int:
+            history_query = history_query.where(Ticket.related_project_id == project_id_int)
         all_history = (await db.execute(history_query.order_by(TicketHistory.created_at.desc()))).scalars().all()
     
     # Get all users for lookups
