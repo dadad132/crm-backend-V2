@@ -10640,6 +10640,7 @@ async def web_tickets_report_excel(
     
     # Generate Excel file
     from openpyxl import Workbook  # type: ignore
+    from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE  # type: ignore
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side  # type: ignore
     from openpyxl.utils import get_column_letter  # type: ignore
     import io
@@ -10678,6 +10679,14 @@ async def web_tickets_report_excel(
             adjusted_width = min(max_length + 2, 60)
             ws.column_dimensions[column].width = adjusted_width
     
+    def safe_excel_value(value):
+        if isinstance(value, str):
+            return ILLEGAL_CHARACTERS_RE.sub('', value)
+        return value
+    
+    def append_row(ws, row):
+        ws.append([safe_excel_value(value) for value in row])
+    
     # Sheet 1: Summary
     ws_summary = wb.active
     ws_summary.title = "Summary"
@@ -10686,11 +10695,11 @@ async def web_tickets_report_excel(
     ws_summary.append([f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}"])
     if user_id_int:
         filter_user = users_dict.get(user_id_int)
-        ws_summary.append([f"Filtered by User: {filter_user.full_name or filter_user.username if filter_user else 'Unknown'}"])
+        append_row(ws_summary, [f"Filtered by User: {filter_user.full_name or filter_user.username if filter_user else 'Unknown'}"])
     if project_id_int:
         filter_project = projects_dict.get(project_id_int)
-        ws_summary.append([f"Filtered by Project: {filter_project.name if filter_project else 'Unknown'}"])
-    ws_summary.append([])
+        append_row(ws_summary, [f"Filtered by Project: {filter_project.name if filter_project else 'Unknown'}"])
+    append_row(ws_summary, [])
     
     total_tickets = len(all_tickets)
     closed_count = sum(1 for t in all_tickets if t.status == 'closed')
@@ -10710,8 +10719,8 @@ async def web_tickets_report_excel(
     
     # Sheet 2: All Tickets
     ws_tickets = wb.create_sheet("All Tickets")
-    ws_tickets.append(["Ticket #", "Subject", "Status", "Priority", "Category", "Assigned To", "Created", "Closed", "Resolution (hrs)", "Project"])
-    style_header_row(ws_tickets, 1, 10)
+    ws_tickets.append(["Ticket #", "Subject", "Client", "Status", "Priority", "Category", "Assigned To", "Created", "Closed", "Resolution (hrs)", "Project"])
+    style_header_row(ws_tickets, 1, 11)
     for ticket in all_tickets:
         assigned_to = users_dict.get(ticket.assigned_to_id)
         project = projects_dict.get(ticket.related_project_id)
@@ -10721,9 +10730,11 @@ async def web_tickets_report_excel(
                 ticket.created_at, ticket.closed_at,
                 biz_start, biz_end, biz_exclude_weekends
             )
-        ws_tickets.append([
+        client_name = ' '.join(filter(None, [ticket.guest_name, ticket.guest_surname])) or ticket.guest_company or ''
+        append_row(ws_tickets, [
             ticket.ticket_number,
             ticket.subject,
+            client_name,
             ticket.status,
             ticket.priority,
             ticket.category or '',
@@ -10743,7 +10754,7 @@ async def web_tickets_report_excel(
         if stats['tickets_assigned'] > 0 or stats['tickets_closed'] > 0 or stats['comments_made'] > 0:
             close_rate = round((stats['tickets_closed'] / stats['tickets_assigned'] * 100) if stats['tickets_assigned'] > 0 else 0)
             avg_resolution = round(sum(stats['resolution_times']) / len(stats['resolution_times']), 1) if stats['resolution_times'] else 0
-            ws_agents.append([
+            append_row(ws_agents, [
                 stats['name'],
                 stats['email'],
                 stats['tickets_assigned'],
@@ -10756,21 +10767,23 @@ async def web_tickets_report_excel(
     
     # Sheet 4: Closed Tickets
     ws_closed = wb.create_sheet("Closed Tickets")
-    ws_closed.append(["Ticket #", "Subject", "Priority", "Category", "Closed By", "Created", "Closed", "Resolution (hrs)",
+    ws_closed.append(["Ticket #", "Subject", "Client", "Priority", "Category", "Closed By", "Created", "Closed", "Resolution (hrs)",
                       "Billable Traveling", "Billable Labour On-site", "Billable Remote Labour", "Billable Equipment",
                       "Non-Billable Traveling", "Non-Billable Labour On-site", "Non-Billable Remote Labour", "Non-Billable Equipment",
                       "Closing Notes"])
-    style_header_row(ws_closed, 1, 17)
+    style_header_row(ws_closed, 1, 18)
     for ticket in all_tickets:
         if ticket.status == 'closed' and ticket.closed_at:
             closed_by = users_dict.get(ticket.closed_by_id)
+            client_name = ' '.join(filter(None, [ticket.guest_name, ticket.guest_surname])) or ticket.guest_company or ''
             resolution_hours = calculate_business_hours(
                 ticket.created_at, ticket.closed_at,
                 biz_start, biz_end, biz_exclude_weekends
             )
-            ws_closed.append([
+            append_row(ws_closed, [
                 ticket.ticket_number,
                 ticket.subject,
+                client_name,
                 ticket.priority,
                 ticket.category or '',
                 (closed_by.full_name or closed_by.username) if closed_by else 'Unknown',
@@ -10797,7 +10810,7 @@ async def web_tickets_report_excel(
         assigned_to = users_dict.get(ticket.assigned_to_id)
         project = projects_dict.get(ticket.related_project_id)
         days_open = (datetime.now() - ticket.created_at).days
-        ws_open.append([
+        append_row(ws_open, [
             ticket.ticket_number,
             ticket.subject,
             ticket.status.replace('_', ' ').title(),
@@ -10818,7 +10831,7 @@ async def web_tickets_report_excel(
     for comment in all_comments:
         author = users_dict.get(comment.user_id)
         ticket = tickets_dict.get(comment.ticket_id)
-        ws_comments.append([
+        append_row(ws_comments, [
             comment.created_at.strftime('%Y-%m-%d %H:%M'),
             ticket.ticket_number if ticket else '',
             (author.full_name or author.username) if author else 'Guest',
@@ -10837,7 +10850,7 @@ async def web_tickets_report_excel(
         details = ''
         if history.new_value:
             details = history.new_value
-        ws_history.append([
+        append_row(ws_history, [
             history.created_at.strftime('%Y-%m-%d %H:%M'),
             ticket.ticket_number if ticket else '',
             (usr.full_name or usr.username) if usr else 'System',
