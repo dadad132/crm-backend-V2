@@ -216,6 +216,30 @@ async def lifespan(app):  # FastAPI lifespan
     except Exception as e:
         logger.warning(f"⚠️  Could not migrate workspace schema: {e}")
 
+    # Ensure support KB tables exist (added after initial deploy)
+    # create_all handles this for new installs; belt-and-suspenders for upgrades
+    try:
+        import sqlite3
+        from pathlib import Path
+        db_path = Path("data.db")
+        if db_path.exists():
+            conn = sqlite3.connect(str(db_path), timeout=30)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='supportconversation'")
+            if not cursor.fetchone():
+                logger.info("🔧 Creating supportconversation / supportarticle / supportcategory tables...")
+                # Let SQLModel create them via create_all (already called above)
+                # but in case it missed them, do a targeted create_all with those models registered
+                from app.models.support_kb import SupportArticle, SupportConversation, SupportCategory  # noqa
+                conn.close()
+                async with engine.begin() as conn2:
+                    await conn2.run_sync(SQLModel.metadata.create_all)
+                logger.info("✅ Support tables created")
+            else:
+                conn.close()
+    except Exception as e:
+        logger.warning(f"⚠️  Could not verify support tables: {e}")
+
     # Add email_account column to processedmail and change unique constraint
     # from global message_id to per-account (message_id + email_account)
     try:

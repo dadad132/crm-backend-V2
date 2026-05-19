@@ -100,7 +100,14 @@
   <script>
     // ── State ────────────────────────────────────────
     // Each page load = fresh session. No email persistence, no history recall.
-    const SESSION_ID = crypto.randomUUID();
+    const SESSION_ID = (() => {
+      try { return crypto.randomUUID(); } catch(e) {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+          const r = Math.random() * 16 | 0;
+          return (c === 'x' ? r : r & 3 | 8).toString(16);
+        });
+      }
+    })();
     let conversationHistory = [];
     let currentProblem = '';
     let currentSolution = '';
@@ -227,6 +234,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      const ct = r.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        throw new Error(`Server returned ${r.status} (${r.statusText})`);
+      }
       return r.json();
     }
 
@@ -253,10 +264,14 @@
           conversation_history: conversationHistory.slice(-10)
         });
         removeTyping();
-        handleResp(data);
+        if (data.error) {
+          addMsg(`<span class="text-red-500">Sorry, something went wrong on my end. Please try again in a moment.</span>`);
+        } else {
+          handleResp(data);
+        }
       } catch(e) {
         removeTyping();
-        addMsg('<span class="text-red-500">Something went wrong — please try again.</span>');
+        addMsg('<span class="text-red-500">Could not reach support assistant — please check your connection and try again.</span>');
       } finally {
         inp.disabled = false;
         document.getElementById('send-btn').disabled = false;
