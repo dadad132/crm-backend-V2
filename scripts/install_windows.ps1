@@ -157,20 +157,26 @@ Write-Host ""
 # Create .env file
 if (-not (Test-Path ".env")) {
     Write-Host "[i] Creating .env configuration file..." -ForegroundColor Cyan
+    $randomSecret = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 64 | ForEach-Object {[char]$_})
     @"
 # CRM Backend Configuration
+APP_DEBUG=false
+APP_HOST=0.0.0.0
+APP_PORT=8000
+
+# Keep false for plain HTTP; set true only when SSL/HTTPS is configured
+APP_HTTPS_ONLY=false
+
+# Allow all origins for public access
+CORS_ORIGINS=["*"]
+
 DATABASE_URL=sqlite+aiosqlite:///./data.db
-SECRET_KEY=change-this-to-a-random-secret-key-in-production
+SECRET_KEY=$randomSecret
 ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+REFRESH_TOKEN_EXPIRE_MINUTES=10080
 
-# Server Configuration
-HOST=0.0.0.0
-PORT=8000
-
-# Update System Configuration
 UPDATE_CHECK_ENABLED=true
-UPDATE_CHECK_URL=https://api.github.com/repos/yourusername/crm-backend/releases/latest
 UPDATE_CHECK_INTERVAL=86400
 "@ | Out-File -FilePath ".env" -Encoding ASCII
     Write-Host "[✓] .env file created" -ForegroundColor Green

@@ -32,10 +32,12 @@ app = FastAPI(
 # GZip compression for faster page loads (compresses responses > 500 bytes)
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
+_cors_origins = settings.cors_origins
+_allow_credentials = "*" not in _cors_origins  # credentials=True requires explicit origins, not "*"
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -127,9 +129,9 @@ app.add_middleware(SecurityHeadersMiddleware)
 # httponly=True prevents JavaScript access to session cookie
 # same_site='lax' provides CSRF protection while allowing normal navigation
 app.add_middleware(
-    SessionMiddleware, 
+    SessionMiddleware,
     secret_key=settings.secret_key,
-    https_only=not settings.debug,  # Secure cookies in production
+    https_only=settings.https_only,  # Only True when HTTPS is configured; False for plain HTTP cloud
     same_site='lax'
 )
 

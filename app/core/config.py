@@ -18,10 +18,11 @@ class Settings(BaseSettings):
 
     database_url: str = Field("sqlite+aiosqlite:///./data.db", alias="DATABASE_URL")
 
-    cors_origins: List[str] = Field(default_factory=lambda: [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ], alias="CORS_ORIGINS")
+    cors_origins: List[str] = Field(default_factory=lambda: ["*"], alias="CORS_ORIGINS")
+
+    # Set True only when HTTPS/SSL is configured on the server.
+    # Keep False (default) for plain HTTP cloud deployments so session cookies work.
+    https_only: bool = Field(False, alias="APP_HTTPS_ONLY")
 
     # Update System Configuration
     update_check_enabled: bool = Field(True, alias="UPDATE_CHECK_ENABLED")
