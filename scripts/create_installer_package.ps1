@@ -12,8 +12,9 @@ New-Item -ItemType Directory -Force -Path $packageName | Out-Null
 
 Write-Host "[i] Copying application files..." -ForegroundColor Yellow
 
-if (Test-Path "app") { Copy-Item -Path "app" -Destination "$packageName\app" -Recurse -Force }
-if (Test-Path "alembic") { Copy-Item -Path "alembic" -Destination "$packageName\alembic" -Recurse -Force }
+if (Test-Path "app")        { Copy-Item -Path "app"        -Destination "$packageName\app"        -Recurse -Force }
+if (Test-Path "alembic")    { Copy-Item -Path "alembic"    -Destination "$packageName\alembic"    -Recurse -Force }
+if (Test-Path "migrations") { Copy-Item -Path "migrations" -Destination "$packageName\migrations" -Recurse -Force }
 
 $filesToCopy = @("requirements.txt", "alembic.ini", ".env.example", "install_ubuntu.sh", "install_ubuntu_debug.sh", "uninstall_ubuntu.sh", "update_ubuntu.sh", "auto_update.sh", "auto_update.bat", "INSTALLER_README.md", "QUICK_INSTALL.md", "PACKAGE_README.md", "README.md")
 
@@ -26,6 +27,9 @@ New-Item -ItemType Directory -Force -Path "$packageName\logs" | Out-Null
 New-Item -ItemType Directory -Force -Path "$packageName\backups" | Out-Null
 New-Item -ItemType Directory -Force -Path "$packageName\updates" | Out-Null
 New-Item -ItemType Directory -Force -Path "$packageName\app\uploads\comments" | Out-Null
+New-Item -ItemType Directory -Force -Path "$packageName\app\uploads\chat_messages" | Out-Null
+New-Item -ItemType Directory -Force -Path "$packageName\app\uploads\tickets" | Out-Null
+New-Item -ItemType Directory -Force -Path "$packageName\app\static" | Out-Null
 
 ".gitkeep" | Out-File -FilePath "$packageName\logs\.gitkeep" -Encoding ASCII
 ".gitkeep" | Out-File -FilePath "$packageName\backups\.gitkeep" -Encoding ASCII

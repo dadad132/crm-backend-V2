@@ -160,6 +160,8 @@ app.include_router(projects_routes.router, prefix="/api")
 app.include_router(tasks_routes.router, prefix="/api")
 from app.api.routes import system as system_routes
 app.include_router(system_routes.router, prefix="/api")
+from app.api.routes import external as external_routes
+app.include_router(external_routes.router, prefix="/api")
 from app.web import routes as web_routes  # noqa: E402
 app.include_router(web_routes.router, prefix="/web")
 

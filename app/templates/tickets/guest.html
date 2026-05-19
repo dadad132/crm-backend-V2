@@ -1,483 +1,334 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Submit Support Ticket</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ workspace.site_title if workspace and workspace.site_title else 'Submit a Ticket' }} — Support</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    {% if workspace and workspace.gui_theme == 'ocean' %}
+    :root { --brand: #0284c7; --brand-dark: #0369a1; --brand-xdark: #075985; --brand-light: #e0f2fe; --brand-ring: #7dd3fc; }
+    {% elif workspace and workspace.gui_theme == 'forest' %}
+    :root { --brand: #16a34a; --brand-dark: #15803d; --brand-xdark: #166534; --brand-light: #dcfce7; --brand-ring: #86efac; }
+    {% elif workspace and workspace.gui_theme == 'midnight' %}
+    :root { --brand: #4f46e5; --brand-dark: #4338ca; --brand-xdark: #3730a3; --brand-light: #e0e7ff; --brand-ring: #a5b4fc; }
+    {% elif workspace and workspace.gui_theme == 'ember' %}
+    :root { --brand: #ea580c; --brand-dark: #c2410c; --brand-xdark: #9a3412; --brand-light: #ffedd5; --brand-ring: #fdba74; }
+    {% else %}
+    :root { --brand: #b91c1c; --brand-dark: #991b1b; --brand-xdark: #7f1d1d; --brand-light: #fee2e2; --brand-ring: #fca5a5; }
+    {% endif %}
+    body { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 60%, var(--brand-light) 100%); }
+    .brand-btn { background: linear-gradient(135deg, var(--brand), var(--brand-dark)); color: #fff; transition: all .2s; }
+    .brand-btn:hover { background: linear-gradient(135deg, var(--brand-dark), var(--brand-xdark)); box-shadow: 0 8px 25px rgba(0,0,0,.2); transform: translateY(-1px); }
+    .brand-icon { background: linear-gradient(135deg, var(--brand), var(--brand-dark)); }
+    .brand-text { color: var(--brand); }
+    .brand-bg-light { background-color: var(--brand-light); }
+    .brand-focus:focus { outline: none; box-shadow: 0 0 0 3px var(--brand-ring); border-color: var(--brand); }
+    .brand-link { color: var(--brand); }
+    .brand-link:hover { color: var(--brand-dark); text-decoration: underline; }
+    .section-title { border-left: 3px solid var(--brand); padding-left: 0.75rem; }
+  </style>
 </head>
-<body class="bg-gradient-to-br from-slate-50 via-slate-100 to-blue-50 min-h-screen">
-    <div class="container mx-auto px-4 py-12">
-        <div class="max-w-3xl mx-auto">
-            <!-- Header -->
-            <div class="text-center mb-8">
-                <div class="inline-block p-4 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg mb-4">
-                    <i class="fas fa-ticket-alt text-4xl text-white"></i>
-                </div>
-                <h1 class="text-4xl font-bold text-gray-900 mb-2">Support Center</h1>
-                <p class="text-gray-600 text-lg">Submit a new ticket or track an existing one</p>
-            </div>
+<body class="min-h-screen py-8 px-4">
 
-            <!-- Navigation to Bubbles Chat -->
-            {% if not success %}
-            <div class="flex justify-center mb-6">
-                <a href="/web/tickets/bubbles" 
-                   class="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl shadow-md hover:from-purple-600 hover:to-pink-600 hover:shadow-lg transition-all duration-200 flex items-center gap-3">
-                    <span class="text-2xl">🫧</span>
-                    <div class="text-left">
-                        <div class="font-semibold">Chat with Bubbles</div>
-                        <div class="text-sm text-purple-100">Get instant AI help first</div>
-                    </div>
-                </a>
-            </div>
-            {% endif %}
+  <!-- Top nav -->
+  <div class="max-w-3xl mx-auto mb-6 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+      <i class="fas fa-arrow-left text-xs"></i> Back to Portal
+    </a>
+    <a href="/web/tickets/bubbles"
+       class="flex items-center gap-2 text-sm font-medium brand-text hover:opacity-80 transition-opacity">
+      <span>🫧</span> Chat with Bubbles first
+    </a>
+  </div>
 
-            <!-- Action Buttons -->
-            {% if not success %}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                <button onclick="showForm('submit')" id="btn-submit"
-                        class="p-6 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl shadow-lg hover:from-blue-600 hover:to-blue-700 hover:shadow-xl transition-all duration-200 flex flex-col items-center gap-3">
-                    <i class="fas fa-plus-circle text-4xl"></i>
-                    <div>
-                        <div class="font-semibold text-lg">Submit a Ticket</div>
-                        <div class="text-sm text-blue-100">Create a new support request</div>
-                    </div>
-                </button>
-                
-                <button onclick="showForm('track')" id="btn-track"
-                        class="p-6 bg-white border border-slate-200 text-slate-700 rounded-xl shadow-lg hover:border-blue-400 hover:text-blue-600 hover:shadow-xl transition-all duration-200 flex flex-col items-center gap-3">
-                    <i class="fas fa-search text-4xl"></i>
-                    <div>
-                        <div class="font-semibold text-lg">Track a Ticket</div>
-                        <div class="text-sm text-gray-500">Check your ticket status</div>
-                    </div>
-                </button>
-            </div>
-            {% endif %}
+  <div class="max-w-3xl mx-auto">
 
-            <!-- Success Message -->
-            {% if success %}
-            <div class="bg-green-50 border-l-4 border-green-500 p-6 rounded-lg shadow-md mb-6">
-                <div class="flex items-start">
-                    <i class="fas fa-check-circle text-green-500 text-2xl mt-1 mr-3"></i>
-                    <div>
-                        <h3 class="text-lg font-semibold text-green-800 mb-2">Ticket Created Successfully!</h3>
-                        <p class="text-green-700 mb-2">
-                            Your ticket <strong class="font-mono">{{ ticket_number }}</strong> has been created.
-                        </p>
-                        <p class="text-green-600 text-sm mb-3">
-                            {% if email_sent %}
-                            A confirmation email has been sent to <strong>{{ guest_email }}</strong> with your ticket details.
-                            {% else %}
-                            Our team will review your request and respond as soon as possible.
-                            {% endif %}
-                        </p>
-                        <div class="flex gap-3 mt-4">
-                            <a href="/web/tickets/track" 
-                               class="px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 shadow-sm hover:shadow-md transition-all">
-                                <i class="fas fa-search mr-2"></i>Track This Ticket
-                            </a>
-                            <button onclick="location.reload()" 
-                                    class="px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 shadow-sm hover:shadow-md transition-all">
-                                Submit Another Ticket
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Error Message -->
-            {% if error %}
-            <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded-lg shadow-md mb-6">
-                <div class="flex items-start">
-                    <i class="fas fa-exclamation-circle text-red-500 text-2xl mt-1 mr-3"></i>
-                    <div>
-                        <h3 class="text-lg font-semibold text-red-800 mb-1">Error</h3>
-                        <p class="text-red-700">{{ error }}</p>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if not success %}
-            <!-- Ticket Tracking Form -->
-            <div id="track-form" class="bg-white rounded-xl shadow-xl overflow-hidden mb-6 border border-slate-200" style="display: none;">
-                <div class="p-8">
-                    <h2 class="text-2xl font-semibold text-gray-900 mb-4 flex items-center">
-                        <i class="fas fa-search text-blue-600 mr-3"></i>
-                        Track Your Ticket
-                    </h2>
-                    <p class="text-gray-600 mb-6">Enter your ticket number and email address to view the status of your support request.</p>
-                    
-                    <form method="post" action="/web/tickets/track">
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                Ticket Number <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" name="ticket_number" required
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                   placeholder="TKT-2025-00001">
-                            <p class="text-sm text-gray-500 mt-1">
-                                <i class="fas fa-info-circle mr-1"></i>
-                                This was provided when you submitted your ticket
-                            </p>
-                        </div>
-                        
-                        <div class="mb-6">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                Email Address <span class="text-red-500">*</span>
-                            </label>
-                            <input type="email" name="email" required
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                   placeholder="john.doe@example.com">
-                            <p class="text-sm text-gray-500 mt-1">
-                                <i class="fas fa-info-circle mr-1"></i>
-                                Use the same email you submitted the ticket with
-                            </p>
-                        </div>
-                        
-                        <div class="flex justify-end">
-                            <button type="submit"
-                                    class="px-8 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-xl hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2">
-                                <i class="fas fa-search"></i>
-                                Track Ticket
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Submit Ticket Form -->
-            <div id="submit-form" class="bg-white rounded-xl shadow-xl overflow-hidden border border-slate-200">
-                <form method="post" action="/web/tickets/guest" class="p-8" autocomplete="off" enctype="multipart/form-data">
-                    <!-- Personal Information -->
-                    <div class="mb-8">
-                        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                            <i class="fas fa-user text-blue-600 mr-2"></i>
-                            Your Information
-                        </h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    First Name <span class="text-red-500">*</span>
-                                </label>
-                                <input type="text" name="guest_name" required
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                       placeholder="John">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    Last Name <span class="text-red-500">*</span>
-                                </label>
-                                <input type="text" name="guest_surname" required
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                       placeholder="Doe">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    Email Address <span class="text-red-500">*</span>
-                                </label>
-                                <input type="email" name="guest_email" required
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                       placeholder="john.doe@company.com">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    Phone Number <span class="text-red-500">*</span>
-                                </label>
-                                <input type="tel" name="guest_phone" required
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                       placeholder="+1 (555) 123-4567">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    Company Name <span class="text-red-500">*</span>
-                                </label>
-                                <input type="text" name="guest_company" required
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                       placeholder="Acme Corporation">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    Office/Extension Number
-                                </label>
-                                <input type="text" name="guest_office_number"
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                       placeholder="Ext. 1234">
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    Branch/Location
-                                </label>
-                                <input type="text" name="guest_branch"
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                       placeholder="e.g. Main Office, Downtown Branch">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Ticket Details -->
-                    <div class="mb-8">
-                        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                            <i class="fas fa-ticket-alt text-blue-600 mr-2"></i>
-                            Ticket Details
-                        </h2>
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    Subject <span class="text-red-500">*</span>
-                                </label>
-                                <input type="text" name="subject" required
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                       placeholder="Brief summary of your issue">
-                            </div>
-                            <div>
-                                <div class="flex justify-between items-center mb-1">
-                                    <label class="block text-sm font-medium text-gray-700">
-                                        Description <span class="text-red-500">*</span>
-                                    </label>
-                                    <button type="button" onclick="fillDescriptionTemplate()"
-                                            class="text-sm text-blue-600 hover:text-blue-700 hover:underline">
-                                        <i class="fas fa-magic mr-1"></i>Use template
-                                    </button>
-                                </div>
-                                <textarea name="description" required rows="8" id="description-field"
-                                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                          placeholder="Please describe your issue in detail. Include:&#10;- What were you trying to do?&#10;- What happened instead?&#10;- Any error messages you saw&#10;- When did this start happening?"></textarea>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Attachments Section -->
-                    <div class="mb-8">
-                        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                            <i class="fas fa-paperclip text-blue-600 mr-2"></i>
-                            Attachments (Optional)
-                        </h2>
-                        <div class="bg-blue-50 rounded-xl p-4 mb-4">
-                            <p class="text-sm text-blue-700 mb-3">
-                                <i class="fas fa-camera mr-2"></i>
-                                <strong>Helpful:</strong> Attach a screenshot or photo of the error to help us understand your issue better!
-                            </p>
-                            
-                            <!-- Instructions -->
-                            <div class="mb-3">
-                                <button type="button" onclick="toggleInstructions('desktop')" 
-                                        class="w-full flex items-center justify-between text-left text-sm font-medium text-blue-700 hover:text-blue-800">
-                                    <span><i class="fas fa-desktop mr-2"></i>On Computer (Screenshot)</span>
-                                    <i class="fas fa-chevron-down text-xs" id="desktop-chevron"></i>
-                                </button>
-                                <div id="desktop-instructions" class="hidden mt-2 pl-6 text-sm text-blue-600 space-y-1">
-                                    <p><strong>Windows:</strong> Press <kbd class="bg-blue-100 px-1.5 py-0.5 rounded text-xs">Win</kbd> + <kbd class="bg-blue-100 px-1.5 py-0.5 rounded text-xs">Shift</kbd> + <kbd class="bg-blue-100 px-1.5 py-0.5 rounded text-xs">S</kbd> → Select area → Paste or save</p>
-                                    <p><strong>Mac:</strong> Press <kbd class="bg-blue-100 px-1.5 py-0.5 rounded text-xs">Cmd</kbd> + <kbd class="bg-blue-100 px-1.5 py-0.5 rounded text-xs">Shift</kbd> + <kbd class="bg-blue-100 px-1.5 py-0.5 rounded text-xs">4</kbd> → Select area → File saves to Desktop</p>
-                                </div>
-                            </div>
-                            
-                            <div>
-                                <button type="button" onclick="toggleInstructions('mobile')" 
-                                        class="w-full flex items-center justify-between text-left text-sm font-medium text-blue-700 hover:text-blue-800">
-                                    <span><i class="fas fa-mobile-alt mr-2"></i>On Phone/Tablet</span>
-                                    <i class="fas fa-chevron-down text-xs" id="mobile-chevron"></i>
-                                </button>
-                                <div id="mobile-instructions" class="hidden mt-2 pl-6 text-sm text-blue-600 space-y-1">
-                                    <p><strong>iPhone:</strong> Press <kbd class="bg-blue-100 px-1.5 py-0.5 rounded text-xs">Side</kbd> + <kbd class="bg-blue-100 px-1.5 py-0.5 rounded text-xs">Volume Up</kbd> buttons together</p>
-                                    <p><strong>Android:</strong> Press <kbd class="bg-blue-100 px-1.5 py-0.5 rounded text-xs">Power</kbd> + <kbd class="bg-blue-100 px-1.5 py-0.5 rounded text-xs">Volume Down</kbd> buttons together</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- File Upload Options -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                            <div class="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-blue-400 transition-colors">
-                                <label class="cursor-pointer flex flex-col items-center gap-2">
-                                    <i class="fas fa-file-upload text-3xl text-gray-400"></i>
-                                    <span class="text-sm font-medium text-gray-700">Upload Files</span>
-                                    <span class="text-xs text-gray-500">Screenshots, documents, etc.</span>
-                                    <input type="file" name="files" multiple id="file-upload"
-                                           accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar"
-                                           class="hidden" onchange="updateFileList()">
-                                </label>
-                            </div>
-                            
-                            <div id="camera-capture-option" class="hidden border-2 border-dashed border-green-300 rounded-xl p-4 hover:border-green-400 transition-colors bg-green-50">
-                                <label class="cursor-pointer flex flex-col items-center gap-2">
-                                    <i class="fas fa-camera text-3xl text-green-500"></i>
-                                    <span class="text-sm font-medium text-green-700">Take Photo</span>
-                                    <span class="text-xs text-green-600">Use your camera</span>
-                                    <input type="file" name="camera_files" accept="image/*" capture="environment"
-                                           class="hidden" id="camera-capture" onchange="updateFileList()">
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <!-- File Preview Area -->
-                        <div id="file-preview" class="hidden bg-gray-50 rounded-xl p-3 mb-3">
-                            <h4 class="text-sm font-medium text-gray-700 mb-2">
-                                <i class="fas fa-check-circle text-green-500 mr-1"></i>Selected Files:
-                            </h4>
-                            <ul id="file-list" class="text-sm text-gray-600 space-y-1"></ul>
-                        </div>
-                        
-                        <p class="text-sm text-gray-500">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            Max 10MB each. Supported: images, PDF, Word, Excel, text files.
-                        </p>
-                    </div>
-
-                    <!-- Submit Button -->
-                    <div class="flex justify-end pt-6 border-t border-gray-200">
-                        <button type="submit"
-                                class="px-8 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-xl hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2">
-                            <i class="fas fa-paper-plane"></i>
-                            Submit Ticket
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Help Text -->
-            <div class="mt-6 text-center text-sm text-gray-600">
-                <p>
-                    <i class="fas fa-lock mr-1"></i>
-                    Your information is secure and will only be used to assist with your support request.
-                </p>
-            </div>
-            {% endif %}
-        </div>
+    <!-- Header -->
+    <div class="text-center mb-8">
+      {% if workspace and workspace.logo_url %}
+      <img src="{{ workspace.logo_url }}" alt="Logo" class="h-12 mx-auto mb-3 object-contain">
+      {% else %}
+      <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl brand-icon shadow-lg mb-3">
+        <i class="fas fa-ticket-alt text-2xl text-white"></i>
+      </div>
+      {% endif %}
+      <h1 class="text-3xl font-bold text-gray-900">
+        {{ workspace.site_title if workspace and workspace.site_title else 'Support Center' }}
+      </h1>
+      <p class="text-gray-500 mt-1">Submit a ticket or track an existing one</p>
     </div>
 
-    <script>
-        function showForm(type) {
-            const submitForm = document.getElementById('submit-form');
-            const trackForm = document.getElementById('track-form');
-            const btnSubmit = document.getElementById('btn-submit');
-            const btnTrack = document.getElementById('btn-track');
-            
-            const activeClass = 'p-6 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl shadow-lg hover:from-blue-600 hover:to-blue-700 hover:shadow-xl transition-all duration-200 flex flex-col items-center gap-3';
-            const inactiveClass = 'p-6 bg-white border border-slate-200 text-slate-700 rounded-xl shadow-lg hover:border-blue-400 hover:text-blue-600 hover:shadow-xl transition-all duration-200 flex flex-col items-center gap-3';
-            
-            if (type === 'submit') {
-                submitForm.style.display = 'block';
-                trackForm.style.display = 'none';
-                btnSubmit.className = activeClass;
-                btnTrack.className = inactiveClass;
-            } else {
-                submitForm.style.display = 'none';
-                trackForm.style.display = 'block';
-                btnSubmit.className = inactiveClass;
-                btnTrack.className = activeClass;
-            }
-        }
-        
-        function toggleInstructions(type) {
-            const instructions = document.getElementById(type + '-instructions');
-            const chevron = document.getElementById(type + '-chevron');
-            
-            if (instructions.classList.contains('hidden')) {
-                instructions.classList.remove('hidden');
-                chevron.classList.remove('fa-chevron-down');
-                chevron.classList.add('fa-chevron-up');
-            } else {
-                instructions.classList.add('hidden');
-                chevron.classList.remove('fa-chevron-up');
-                chevron.classList.add('fa-chevron-down');
-            }
-        }
-        
-        function fillDescriptionTemplate() {
-            const description = document.getElementById('description-field');
-            const template = `**What I was trying to do:**
-[Describe what you were attempting to do when the problem occurred]
+    <!-- Tab switcher -->
+    {% if not success %}
+    <div class="flex gap-3 mb-6">
+      <button onclick="showTab('submit')" id="tab-submit"
+              class="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-sm brand-btn">
+        <i class="fas fa-plus-circle"></i> Submit a Ticket
+      </button>
+      <button onclick="showTab('track')" id="tab-track"
+              class="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-sm bg-white text-gray-600 border border-gray-200 hover:border-gray-400 hover:text-gray-900">
+        <i class="fas fa-search"></i> Track a Ticket
+      </button>
+    </div>
+    {% endif %}
 
-**What happened:**
-[Describe what actually happened - any error messages, unexpected behavior, etc.]
+    <!-- Flash messages -->
+    {% if success %}
+    <div class="bg-green-50 border border-green-200 rounded-2xl p-6 mb-6 flex items-start gap-4">
+      <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+        <i class="fas fa-check-circle text-green-600 text-xl"></i>
+      </div>
+      <div>
+        <h3 class="text-lg font-semibold text-green-800 mb-1">Ticket Created!</h3>
+        <p class="text-green-700 mb-1">Your ticket number is <strong class="font-mono">{{ ticket_number }}</strong>.</p>
+        <p class="text-green-600 text-sm mb-4">
+          {% if email_sent %}A confirmation email has been sent to <strong>{{ guest_email }}</strong>.{% else %}Our team will review your request shortly.{% endif %}
+        </p>
+        <div class="flex flex-wrap gap-3">
+          <a href="/web/tickets/track"
+             class="brand-btn px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2">
+            <i class="fas fa-search"></i> Track This Ticket
+          </a>
+          <a href="/"
+             class="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition flex items-center gap-2">
+            <i class="fas fa-home"></i> Back to Portal
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
 
-**Steps to reproduce:**
-1. [First step]
-2. [Second step]
-3. [What happened]
+    {% if error %}
+    <div class="bg-red-50 border border-red-200 rounded-2xl p-5 mb-6 flex items-start gap-3">
+      <i class="fas fa-exclamation-circle text-red-500 mt-0.5"></i>
+      <div>
+        <p class="font-semibold text-red-800">Something went wrong</p>
+        <p class="text-red-700 text-sm">{{ error }}</p>
+      </div>
+    </div>
+    {% endif %}
 
-**Error message (if any):**
-[Copy and paste the exact error message here]
+    {% if not success %}
 
-**Additional information:**
-- Browser/Device: 
-- When did this start happening: `;
-            
-            if (description.value.trim() === '') {
-                description.value = template;
-            } else {
-                if (confirm('This will replace your current description. Continue?')) {
-                    description.value = template;
-                }
-            }
-            description.focus();
+    <!-- Track form -->
+    <div id="panel-track" style="display:none">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-1 section-title">Track Your Ticket</h2>
+        <p class="text-gray-500 text-sm mb-6 mt-2">Enter your ticket number and email to check status.</p>
+        <form method="post" action="/web/tickets/track" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Ticket Number <span class="text-red-500">*</span></label>
+            <input type="text" name="ticket_number" required placeholder="TKT-2025-00001"
+                   class="brand-focus w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Email Address <span class="text-red-500">*</span></label>
+            <input type="email" name="email" required placeholder="you@company.com"
+                   class="brand-focus w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm">
+          </div>
+          <div class="flex justify-end pt-2">
+            <button type="submit" class="brand-btn px-8 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2">
+              <i class="fas fa-search"></i> Track Ticket
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Submit form -->
+    <div id="panel-submit">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100">
+        <form method="post" action="/web/tickets/guest" autocomplete="off" enctype="multipart/form-data" class="p-6 sm:p-8 space-y-8">
+
+          <!-- Personal Information -->
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900 mb-4 section-title">Your Information</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">First Name <span class="text-red-500">*</span></label>
+                <input type="text" name="guest_name" required placeholder="John"
+                       class="brand-focus w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Last Name <span class="text-red-500">*</span></label>
+                <input type="text" name="guest_surname" required placeholder="Doe"
+                       class="brand-focus w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Email Address <span class="text-red-500">*</span></label>
+                <input type="email" name="guest_email" required placeholder="john@company.com"
+                       class="brand-focus w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Phone Number <span class="text-red-500">*</span></label>
+                <input type="tel" name="guest_phone" required placeholder="+27 82 123 4567"
+                       class="brand-focus w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Company <span class="text-red-500">*</span></label>
+                <input type="text" name="guest_company" required placeholder="Acme Corp"
+                       class="brand-focus w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Office / Extension</label>
+                <input type="text" name="guest_office_number" placeholder="Ext. 1234"
+                       class="brand-focus w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm">
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Branch / Location</label>
+                <input type="text" name="guest_branch" placeholder="e.g. Head Office, Cape Town Branch"
+                       class="brand-focus w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm">
+              </div>
+            </div>
+          </div>
+
+          <!-- Ticket Details -->
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900 mb-4 section-title">Issue Details</h2>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Subject <span class="text-red-500">*</span></label>
+                <input type="text" name="subject" required placeholder="Brief summary of your issue"
+                       class="brand-focus w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm">
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="block text-sm font-medium text-gray-700">Description <span class="text-red-500">*</span></label>
+                  <button type="button" onclick="fillTemplate()"
+                          class="text-xs brand-text hover:opacity-80 font-medium flex items-center gap-1">
+                    <i class="fas fa-magic"></i> Use template
+                  </button>
+                </div>
+                <textarea name="description" required rows="7" id="desc-field"
+                          class="brand-focus w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm resize-y"
+                          placeholder="Please describe your issue in detail — what happened, any error messages, and when it started."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Attachments -->
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900 mb-4 section-title">Attachments <span class="text-gray-400 font-normal text-sm ml-1">(optional)</span></h2>
+            <div class="brand-bg-light rounded-xl p-4 mb-4">
+              <p class="text-sm font-medium brand-text mb-3 flex items-center gap-2">
+                <i class="fas fa-lightbulb"></i>
+                A screenshot really helps us understand your issue faster!
+              </p>
+              <div class="flex flex-wrap gap-4 text-sm text-gray-600">
+                <button type="button" onclick="toggle('desktop-tips')" class="flex items-center gap-1.5 hover:text-gray-900 transition-colors">
+                  <i class="fas fa-desktop text-xs"></i> Computer tips
+                  <i class="fas fa-chevron-down text-xs" id="desktop-chev"></i>
+                </button>
+                <button type="button" onclick="toggle('mobile-tips')" class="flex items-center gap-1.5 hover:text-gray-900 transition-colors">
+                  <i class="fas fa-mobile-alt text-xs"></i> Phone tips
+                  <i class="fas fa-chevron-down text-xs" id="mobile-chev"></i>
+                </button>
+              </div>
+              <div id="desktop-tips" class="hidden mt-3 text-sm text-gray-600 space-y-1 pl-4 border-l-2 border-gray-200">
+                <p><strong>Windows:</strong> <kbd class="bg-white px-1.5 py-0.5 rounded text-xs border">Win</kbd>+<kbd class="bg-white px-1.5 py-0.5 rounded text-xs border">Shift</kbd>+<kbd class="bg-white px-1.5 py-0.5 rounded text-xs border">S</kbd> then paste</p>
+                <p><strong>Mac:</strong> <kbd class="bg-white px-1.5 py-0.5 rounded text-xs border">⌘</kbd>+<kbd class="bg-white px-1.5 py-0.5 rounded text-xs border">Shift</kbd>+<kbd class="bg-white px-1.5 py-0.5 rounded text-xs border">4</kbd></p>
+              </div>
+              <div id="mobile-tips" class="hidden mt-3 text-sm text-gray-600 space-y-1 pl-4 border-l-2 border-gray-200">
+                <p><strong>iPhone:</strong> Side button + Volume Up together</p>
+                <p><strong>Android:</strong> Power + Volume Down together</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <label class="border-2 border-dashed border-gray-200 rounded-xl p-4 cursor-pointer hover:border-gray-400 transition-colors flex flex-col items-center gap-2 text-center">
+                <i class="fas fa-file-upload text-2xl text-gray-400"></i>
+                <span class="text-sm font-medium text-gray-700">Upload Files</span>
+                <span class="text-xs text-gray-400">Images, PDF, Office docs</span>
+                <input type="file" name="files" multiple id="file-upload" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" class="hidden" onchange="updateFiles()">
+              </label>
+              <label id="camera-option" class="hidden border-2 border-dashed border-green-200 rounded-xl p-4 cursor-pointer hover:border-green-400 transition-colors flex flex-col items-center gap-2 text-center bg-green-50">
+                <i class="fas fa-camera text-2xl text-green-500"></i>
+                <span class="text-sm font-medium text-green-700">Take Photo</span>
+                <span class="text-xs text-green-500">Use your camera directly</span>
+                <input type="file" name="camera_files" accept="image/*" capture="environment" id="camera-input" class="hidden" onchange="updateFiles()">
+              </label>
+            </div>
+            <div id="file-preview" class="hidden bg-gray-50 rounded-xl p-3 text-sm text-gray-600 mb-2">
+              <p class="font-medium text-gray-700 mb-1.5"><i class="fas fa-check-circle text-green-500 mr-1"></i>Selected files:</p>
+              <ul id="file-list" class="space-y-1"></ul>
+            </div>
+            <p class="text-xs text-gray-400"><i class="fas fa-info-circle mr-1"></i>Max 10 MB each. Images, PDF, Word, Excel supported.</p>
+          </div>
+
+          <!-- Submit -->
+          <div class="flex justify-end pt-4 border-t border-gray-100">
+            <button type="submit" class="brand-btn px-10 py-3 rounded-xl font-semibold text-base flex items-center gap-2">
+              <i class="fas fa-paper-plane"></i> Submit Ticket
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <p class="text-center text-xs text-gray-400 mt-6">
+      <i class="fas fa-lock mr-1"></i>Your information is secure and used only for support purposes.
+    </p>
+  </div>
+
+  <script>
+    function showTab(t) {
+      const active = 'brand-btn flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-sm';
+      const inactive = 'flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-sm bg-white text-gray-600 border border-gray-200 hover:border-gray-400 hover:text-gray-900';
+      document.getElementById('tab-submit').className = t === 'submit' ? active : inactive;
+      document.getElementById('tab-track').className  = t === 'track'  ? active : inactive;
+      document.getElementById('tab-submit').innerHTML = t === 'submit'
+        ? '<i class="fas fa-plus-circle"></i> Submit a Ticket'
+        : '<i class="fas fa-plus-circle"></i> Submit a Ticket';
+      document.getElementById('panel-submit').style.display = t === 'submit' ? 'block' : 'none';
+      document.getElementById('panel-track').style.display  = t === 'track'  ? 'block' : 'none';
+    }
+
+    function toggle(id) {
+      const el = document.getElementById(id);
+      el.classList.toggle('hidden');
+      const chev = document.getElementById(id.replace('-tips', '-chev'));
+      if (chev) chev.className = el.classList.contains('hidden') ? 'fas fa-chevron-down text-xs' : 'fas fa-chevron-up text-xs';
+    }
+
+    function fillTemplate() {
+      const f = document.getElementById('desc-field');
+      const tpl = `What I was trying to do:\n[Describe what you were doing]\n\nWhat happened:\n[What went wrong / error messages]\n\nSteps to reproduce:\n1. \n2. \n3. \n\nWhen did this start happening:\n[Date / time]`;
+      if (!f.value.trim() || confirm('Replace current text with template?')) { f.value = tpl; f.focus(); }
+    }
+
+    function updateFiles() {
+      const up = document.getElementById('file-upload');
+      const cam = document.getElementById('camera-input');
+      const list = document.getElementById('file-list');
+      const prev = document.getElementById('file-preview');
+      list.innerHTML = '';
+      let has = false;
+      const add = (files, icon, color) => {
+        for (const f of files) {
+          has = true;
+          const li = document.createElement('li');
+          li.innerHTML = `<i class="${icon} ${color} mr-1"></i>${f.name} <span class="text-gray-400">(${(f.size/1024).toFixed(1)} KB)</span>`;
+          list.appendChild(li);
         }
-        
-        function updateFileList() {
-            const fileUpload = document.getElementById('file-upload');
-            const cameraCapture = document.getElementById('camera-capture');
-            const preview = document.getElementById('file-preview');
-            const list = document.getElementById('file-list');
-            
-            list.innerHTML = '';
-            let hasFiles = false;
-            
-            if (fileUpload.files.length > 0) {
-                hasFiles = true;
-                for (let file of fileUpload.files) {
-                    const li = document.createElement('li');
-                    li.className = 'flex items-center gap-2';
-                    const icon = file.type.startsWith('image/') ? 'fa-image text-blue-500' : 'fa-file text-gray-500';
-                    const size = (file.size / 1024).toFixed(1);
-                    li.innerHTML = `<i class="fas ${icon}"></i> ${file.name} <span class="text-gray-400">(${size} KB)</span>`;
-                    list.appendChild(li);
-                }
-            }
-            
-            if (cameraCapture && cameraCapture.files.length > 0) {
-                hasFiles = true;
-                for (let file of cameraCapture.files) {
-                    const li = document.createElement('li');
-                    li.className = 'flex items-center gap-2';
-                    const size = (file.size / 1024).toFixed(1);
-                    li.innerHTML = `<i class="fas fa-camera text-green-500"></i> ${file.name} <span class="text-gray-400">(${size} KB)</span>`;
-                    list.appendChild(li);
-                }
-            }
-            
-            preview.classList.toggle('hidden', !hasFiles);
-        }
-        
-        async function detectCamera() {
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            
-            if (isMobile || (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices)) {
-                try {
-                    if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-                        const devices = await navigator.mediaDevices.enumerateDevices();
-                        const hasCamera = devices.some(device => device.kind === 'videoinput');
-                        if (hasCamera) {
-                            document.getElementById('camera-capture-option').classList.remove('hidden');
-                        }
-                    } else if (isMobile) {
-                        document.getElementById('camera-capture-option').classList.remove('hidden');
-                    }
-                } catch (e) {
-                    if (isMobile) {
-                        document.getElementById('camera-capture-option').classList.remove('hidden');
-                    }
-                }
-            }
-        }
-        
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            showForm('submit');
-            detectCamera();
-        });
-    </script>
+      };
+      if (up.files.length) add(up.files, 'fas fa-file', 'text-blue-500');
+      if (cam && cam.files.length) add(cam.files, 'fas fa-camera', 'text-green-500');
+      prev.classList.toggle('hidden', !has);
+    }
+
+    async function detectCamera() {
+      const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+      if (isMobile) { document.getElementById('camera-option').classList.remove('hidden'); return; }
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        if (devices.some(d => d.kind === 'videoinput')) document.getElementById('camera-option').classList.remove('hidden');
+      } catch(e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', () => { showTab('submit'); detectCamera(); });
+  </script>
 </body>
 </html>

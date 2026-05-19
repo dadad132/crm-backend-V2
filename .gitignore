@@ -22,3 +22,12 @@ app/uploads/
 # Alembic
 alembic/versions/*.pyc
 *.DS_Store
+
+# Backups and logs (runtime artefacts, not source code)
+backups/
+server_log.txt
+crm_install_log.txt
+*.log
+
+# Claude Code session data
+.claude/

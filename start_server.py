@@ -7,6 +7,15 @@ import sys
 import os
 from pathlib import Path
 
+# Force UTF-8 output to prevent emoji/unicode encoding errors on Windows consoles
+os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 # Add the project root to Python path
 project_root = Path(__file__).resolve().parent
 sys.path.insert(0, str(project_root))

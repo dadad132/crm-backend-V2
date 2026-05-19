@@ -1,4 +1,4 @@
-﻿# pyright: reportGeneralTypeIssues=false
+# pyright: reportGeneralTypeIssues=false
 # pyright: reportArgumentType=false
 # pyright: reportAttributeAccessIssue=false
 # pyright: reportOptionalMemberAccess=false
@@ -6174,6 +6174,7 @@ async def web_admin_site_settings_save(
     business_hours_start: str = Form("07:30"),
     business_hours_end: str = Form("16:00"),
     business_hours_exclude_weekends: str = Form(None),
+    gui_theme: str = Form("crimson"),
     db: AsyncSession = Depends(get_session)
 ):
     """Save site branding settings"""
@@ -6200,7 +6201,8 @@ async def web_admin_site_settings_save(
             workspace.business_hours_start = business_hours_start or "07:30"
             workspace.business_hours_end = business_hours_end or "16:00"
             workspace.business_hours_exclude_weekends = business_hours_exclude_weekends == "1"
-            
+            workspace.gui_theme = gui_theme or "crimson"
+
             await db.commit()
             request.session['success_message'] = 'Site settings saved successfully!'
         else:
@@ -6212,6 +6214,54 @@ async def web_admin_site_settings_save(
         else:
             request.session['error_message'] = f'Failed to save settings: {str(e)}'
     
+    return RedirectResponse('/web/admin/site-settings', status_code=303)
+
+
+@router.post('/admin/site-settings/save-ai')
+async def web_admin_site_settings_save_ai(
+    request: Request,
+    bubbles_ai_provider: str = Form(None),
+    bubbles_api_key: str = Form(None),
+    db: AsyncSession = Depends(get_session)
+):
+    """Save Bubbles AI provider and API key"""
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return RedirectResponse('/web/login', status_code=303)
+
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user or not user.is_admin:
+        return RedirectResponse('/web/dashboard', status_code=303)
+
+    try:
+        workspace = (await db.execute(
+            select(Workspace).where(Workspace.id == user.workspace_id)
+        )).scalar_one_or_none()
+
+        if workspace:
+            key = bubbles_api_key.strip() if bubbles_api_key and bubbles_api_key.strip() else None
+            provider = bubbles_ai_provider.strip() if bubbles_ai_provider and bubbles_ai_provider.strip() else None
+
+            workspace.anthropic_api_key = key
+            workspace.bubbles_ai_provider = provider if key else None
+            await db.commit()
+
+            if key and provider:
+                if provider == "anthropic":
+                    provider_label = "Claude (Anthropic)"
+                elif provider == "openai":
+                    provider_label = "ChatGPT (OpenAI)"
+                else:
+                    provider_label = "Gemini (Google)"
+                request.session['success_message'] = f'Bubbles AI activated using {provider_label}!'
+            else:
+                request.session['success_message'] = 'API key removed. Bubbles is back in rule-based mode.'
+        else:
+            request.session['error_message'] = 'Workspace not found'
+
+    except Exception as e:
+        request.session['error_message'] = f'Failed to save AI settings: {str(e)}'
+
     return RedirectResponse('/web/admin/site-settings', status_code=303)
 
 
@@ -9795,21 +9845,15 @@ async def web_tickets_report(
     
     for uid, stats in agent_stats.items():
         if stats['tickets_assigned'] > 0 or stats['tickets_closed'] > 0 or stats['comments_made'] > 0:
-            # Close rate = (tickets this user closed / total tickets in date range) * 100
-            # This shows what percentage of all tickets this user has closed
-            close_rate = round((stats['tickets_closed'] / total_tickets_in_range * 100) if total_tickets_in_range > 0 else 0)
-            
             avg_resolution = round(sum(stats['resolution_times']) / len(stats['resolution_times']), 1) if stats['resolution_times'] else 0
             avg_first_response = round(sum(stats['first_response_times']) / len(stats['first_response_times']), 1) if stats['first_response_times'] else 0
-            
+
             agents.append({
                 'name': stats['name'],
                 'email': stats['email'],
                 'initials': stats['initials'],
                 'tickets_assigned': stats['tickets_assigned'],
                 'tickets_closed': stats['tickets_closed'],
-                'total_tickets': total_tickets_in_range,  # Total tickets in the date range
-                'close_rate': close_rate,
                 'avg_resolution_hours': avg_resolution,
                 'comments_made': stats['comments_made'],
                 'avg_first_response_hours': avg_first_response,
@@ -10291,20 +10335,18 @@ async def web_tickets_report_pdf(
     
     # Agent Performance
     elements.append(Paragraph("Agent Performance", heading_style))
-    agent_data = [['Agent', 'Assigned', 'Closed', 'Close Rate', 'Comments']]
+    agent_data = [['Agent', 'Assigned', 'Closed', 'Comments']]
     for uid, stats in sorted(agent_stats.items(), key=lambda x: x[1]['tickets_closed'], reverse=True):
         if stats['tickets_assigned'] > 0 or stats['tickets_closed'] > 0 or stats['comments_made'] > 0:
-            close_rate = round((stats['tickets_closed'] / stats['tickets_assigned'] * 100) if stats['tickets_assigned'] > 0 else 0)
             agent_data.append([
                 Paragraph(stats['name'], styles['Normal']),
                 str(stats['tickets_assigned']),
                 str(stats['tickets_closed']),
-                f'{close_rate}%',
                 str(stats['comments_made']),
             ])
     
     if len(agent_data) > 1:
-        agent_table = Table(agent_data, colWidths=[2*inch, 1*inch, 1*inch, 1*inch, 1.2*inch])
+        agent_table = Table(agent_data, colWidths=[2.5*inch, 1.2*inch, 1.2*inch, 1.4*inch])
         agent_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#6366F1')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -10748,18 +10790,16 @@ async def web_tickets_report_excel(
     
     # Sheet 3: Agent Performance
     ws_agents = wb.create_sheet("Agent Performance")
-    ws_agents.append(["Agent", "Email", "Tickets Assigned", "Tickets Closed", "Close Rate", "Comments Made", "Avg Resolution (hrs)"])
-    style_header_row(ws_agents, 1, 7)
+    ws_agents.append(["Agent", "Email", "Tickets Assigned", "Tickets Closed", "Comments Made", "Avg Resolution (hrs)"])
+    style_header_row(ws_agents, 1, 6)
     for uid, stats in sorted(agent_stats.items(), key=lambda x: x[1]['tickets_closed'], reverse=True):
         if stats['tickets_assigned'] > 0 or stats['tickets_closed'] > 0 or stats['comments_made'] > 0:
-            close_rate = round((stats['tickets_closed'] / stats['tickets_assigned'] * 100) if stats['tickets_assigned'] > 0 else 0)
             avg_resolution = round(sum(stats['resolution_times']) / len(stats['resolution_times']), 1) if stats['resolution_times'] else 0
             append_row(ws_agents, [
                 stats['name'],
                 stats['email'],
                 stats['tickets_assigned'],
                 stats['tickets_closed'],
-                f"{close_rate}%",
                 stats['comments_made'],
                 avg_resolution,
             ])
@@ -11270,7 +11310,24 @@ async def web_tickets_create(
             )
     except Exception:
         pass  # Don't fail ticket creation if tracking fails
-    
+
+    # Fire webhook for external integrations
+    try:
+        from app.core.webhooks import fire_webhook
+        await fire_webhook(db, user.workspace_id, "ticket.created", {
+            "ticket_number": ticket.ticket_number,
+            "subject": ticket.subject,
+            "priority": ticket.priority,
+            "category": ticket.category,
+            "status": ticket.status,
+            "guest_name": ticket.guest_name,
+            "guest_email": ticket.guest_email,
+            "guest_company": ticket.guest_company,
+            "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+        })
+    except Exception:
+        pass
+
     return RedirectResponse(f'/web/tickets/{ticket.id}', status_code=303)
 
 
@@ -11280,7 +11337,8 @@ async def web_tickets_guest_form(request: Request):
     """Public guest ticket submission form (no login required)"""
     return templates.TemplateResponse('tickets/guest.html', {
         'request': request,
-        'success': False
+        'success': False,
+        'workspace': getattr(request.state, 'workspace', None),
     })
 
 
@@ -11288,7 +11346,8 @@ async def web_tickets_guest_form(request: Request):
 async def web_tickets_bubbles_chat(request: Request):
     """Bubbles AI Assistant chat page (no login required)"""
     return templates.TemplateResponse('tickets/bubbles.html', {
-        'request': request
+        'request': request,
+        'workspace': getattr(request.state, 'workspace', None),
     })
 
 
@@ -11506,20 +11565,23 @@ async def web_tickets_guest_submit(
             logger.warning(f"Failed to send confirmation email: {e}")
             # Continue even if email fails
         
+        workspace = getattr(request.state, 'workspace', None)
         return templates.TemplateResponse('tickets/guest.html', {
             'request': request,
             'success': True,
             'ticket_number': ticket_number,
             'guest_email': guest_email,
-            'email_sent': email_sent
+            'email_sent': email_sent,
+            'workspace': workspace,
         })
-        
+
     except Exception as e:
         logger.error(f"Guest ticket creation failed: {e}")
         return templates.TemplateResponse('tickets/guest.html', {
             'request': request,
             'success': False,
-            'error': 'Failed to create ticket. Please try again or contact support.'
+            'error': 'Failed to create ticket. Please try again or contact support.',
+            'workspace': getattr(request.state, 'workspace', None),
         })
 
 
@@ -11629,6 +11691,118 @@ Here are your options:
 I'm Bubbles, and while I try my best to help, I know sometimes you need that human touch! 💫 Our support team is awesome and they'll take great care of you!"""
     
     return response
+
+
+async def get_claude_bubbles_response(
+    message: str,
+    conversation_history: list,
+    workspace_id: int,
+    db: AsyncSession,
+    kb_articles: list = None
+) -> str | None:
+    """
+    Call the configured AI provider (Anthropic, OpenAI, or Gemini) to generate a Bubbles response.
+    Returns None if no key/provider is configured or the call fails.
+    """
+    workspace = None  # defined early so except block can safely reference it
+    provider = None
+    try:
+        workspace_result = await db.execute(
+            select(Workspace).where(Workspace.id == workspace_id)
+        )
+        workspace = workspace_result.scalar_one_or_none()
+
+        if not workspace or not workspace.anthropic_api_key or not workspace.bubbles_ai_provider:
+            return None
+
+        api_key = workspace.anthropic_api_key
+        provider = workspace.bubbles_ai_provider
+
+        # Shared system prompt — Bubbles persona
+        kb_context = ""
+        if kb_articles:
+            kb_context = "\n\nRelevant knowledge base articles:\n" + "\n".join(
+                f"- {a['title']}: {a['solution'][:200]}"
+                for a in kb_articles[:3]
+            )
+
+        system_prompt = (
+            "You are Bubbles, a friendly, empathetic IT support assistant for a company CRM system. "
+            "Your personality is warm, encouraging and clear. You use simple language, avoid jargon, "
+            "and guide users step by step through technical problems. "
+            "Keep responses concise (under 200 words). Use bullet points or numbered steps when listing instructions. "
+            "If you cannot solve the problem, politely suggest creating a support ticket. "
+            "Never claim to be a human — you are Bubbles, an AI assistant."
+            + kb_context
+        )
+
+        # Shared message list (last 6 turns + current)
+        messages = []
+        for turn in conversation_history[-6:]:
+            role = "user" if turn.get("role") == "user" else "assistant"
+            content = turn.get("content", "").strip()
+            if content:
+                messages.append({"role": role, "content": content})
+        messages.append({"role": "user", "content": message})
+
+        # ---- Anthropic ----
+        if provider == "anthropic":
+            import anthropic as _anthropic
+            client = _anthropic.Anthropic(api_key=api_key)
+            response = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=400,
+                system=system_prompt,
+                messages=messages,
+            )
+            return response.content[0].text.strip() if response.content else None
+
+        # ---- OpenAI ----
+        if provider == "openai":
+            from openai import OpenAI as _OpenAI
+            client = _OpenAI(api_key=api_key)
+            oai_messages = [{"role": "system", "content": system_prompt}] + messages
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                max_tokens=400,
+                messages=oai_messages,
+            )
+            return response.choices[0].message.content.strip() if response.choices else None
+
+        # ---- Google Gemini (google-genai SDK) ----
+        if provider == "gemini":
+            from google import genai as _genai
+            from google.genai import types as _gtypes
+            GEMINI_MODEL = "gemini-3.0-flash"
+            client = _genai.Client(api_key=api_key)
+            # Build contents list: prior history + current message
+            contents = []
+            for turn in messages[:-1]:
+                role = "user" if turn["role"] == "user" else "model"
+                contents.append(_gtypes.Content(
+                    role=role,
+                    parts=[_gtypes.Part.from_text(text=turn["content"])]
+                ))
+            contents.append(_gtypes.Content(
+                role="user",
+                parts=[_gtypes.Part.from_text(text=message)]
+            ))
+            response = client.models.generate_content(
+                model=GEMINI_MODEL,
+                config=_gtypes.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    max_output_tokens=400,
+                    temperature=0.7,
+                ),
+                contents=contents,
+            )
+            return response.text.strip() if response.text else None
+
+        return None
+
+    except Exception as e:
+        logger.warning(f"AI (provider={provider or '?'}) call failed: {e}")
+        return None
 
 
 @router.post('/tickets/support/chat', response_class=JSONResponse)
@@ -11901,6 +12075,20 @@ async def support_assistant_chat(
                 'message': f"I found {len(unique_kb_results)} solution(s) that might help with your issue."
             })
         else:
+            # Try Claude AI before falling back to web search
+            claude_response = await get_claude_bubbles_response(
+                message=message,
+                conversation_history=conversation_history,
+                workspace_id=1,
+                db=db
+            )
+            if claude_response:
+                prefix = response_data['empathy_prefix'] + "\n\n" if response_data['empathy_prefix'] else ""
+                response_data['is_conversational'] = True
+                response_data['bubbles_response'] = prefix + claude_response
+                await db.commit()
+                return JSONResponse(response_data)
+
             web_results = await search_duckduckgo(message)
             solution_steps = await extract_solution_steps(web_results)
             response_data['web_results'] = solution_steps
@@ -11908,11 +12096,24 @@ async def support_assistant_chat(
                 'type': 'web_search',
                 'message': "I searched the web for solutions. Here's what I found:"
             })
-        
-        # Add empathy prefix to bubble response if frustrated
-        if response_data['empathy_prefix']:
+
+        # When KB articles are found, try Claude to produce a natural summary response
+        if response_data['found_in_kb'] and response_data['kb_articles'] and not response_data.get('bubbles_response'):
+            claude_response = await get_claude_bubbles_response(
+                message=message,
+                conversation_history=conversation_history,
+                workspace_id=1,
+                db=db,
+                kb_articles=response_data['kb_articles']
+            )
+            if claude_response:
+                prefix = response_data['empathy_prefix'] + "\n\n" if response_data['empathy_prefix'] else ""
+                response_data['bubbles_response'] = prefix + claude_response
+
+        # Add empathy prefix to bubble response if frustrated and no other response set
+        if response_data['empathy_prefix'] and not response_data.get('bubbles_response'):
             response_data['bubbles_response'] = response_data['empathy_prefix']
-        
+
         await db.commit()
         return JSONResponse(response_data)
         
@@ -14624,6 +14825,21 @@ async def web_tickets_update_status(
         except Exception as e:
             logger.error(f"Failed to send ticket completion notification: {e}")
     
+    # Fire webhook for external integrations
+    try:
+        from app.core.webhooks import fire_webhook
+        event = "ticket.closed" if status == "closed" else "ticket.updated"
+        await fire_webhook(db, ticket.workspace_id, event, {
+            "ticket_number": ticket.ticket_number,
+            "subject": ticket.subject,
+            "old_status": old_status,
+            "new_status": status,
+            "priority": ticket.priority,
+            "category": ticket.category,
+        })
+    except Exception:
+        pass
+
     # Return JSON for AJAX requests
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JSONResponse({
@@ -14633,7 +14849,7 @@ async def web_tickets_update_status(
             'new_status': status,
             'ticket_number': ticket.ticket_number
         })
-    
+
     return RedirectResponse(f'/web/tickets/{ticket_id}', status_code=303)
 
 
@@ -14793,6 +15009,25 @@ async def web_tickets_close_with_details(
         logger.error(f"Failed to send ticket completion notification: {e}")
     
     request.session['success_message'] = f'Ticket #{ticket.ticket_number} has been closed.'
+
+    # Fire webhook for external integrations
+    try:
+        from app.core.webhooks import fire_webhook
+        await fire_webhook(db, ticket.workspace_id, "ticket.closed", {
+            "ticket_number": ticket.ticket_number,
+            "subject": ticket.subject,
+            "priority": ticket.priority,
+            "category": ticket.category,
+            "status": "closed",
+            "guest_name": ticket.guest_name,
+            "guest_email": ticket.guest_email,
+            "guest_company": ticket.guest_company,
+            "closed_at": ticket.closed_at.isoformat() if ticket.closed_at else None,
+            "closing_notes": ticket.closing_notes,
+        })
+    except Exception:
+        pass
+
     return RedirectResponse(f'/web/tickets/{ticket_id}', status_code=303)
 
 
@@ -17316,3 +17551,218 @@ async def web_admin_storage_delete_archived(request: Request, db: AsyncSession =
         logger.error(f"Error deleting archived tickets: {e}")
         await db.rollback()
         return RedirectResponse('/web/admin/storage?error=delete_failed', status_code=303)
+
+
+# =============================================================================
+# API KEYS — Admin management
+# =============================================================================
+
+@router.get('/admin/api-keys', response_class=HTMLResponse)
+async def web_admin_api_keys(request: Request, db: AsyncSession = Depends(get_session)):
+    """List and manage API keys for external program access."""
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return RedirectResponse('/web/login', status_code=303)
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user or not user.is_admin:
+        return RedirectResponse('/web/dashboard', status_code=303)
+    workspace = (await db.execute(select(Workspace).where(Workspace.id == user.workspace_id))).scalar_one_or_none()
+
+    from app.models.api_key import APIKey
+    keys = (await db.execute(
+        select(APIKey).where(APIKey.workspace_id == user.workspace_id).order_by(APIKey.created_at.desc())
+    )).scalars().all()
+
+    new_key = request.session.pop('new_api_key', None)
+    success_message = request.session.pop('success_message', None)
+    error_message = request.session.pop('error_message', None)
+
+    return templates.TemplateResponse('admin/api_keys.html', {
+        'request': request, 'user': user, 'workspace': workspace,
+        'keys': keys, 'new_key': new_key,
+        'success_message': success_message, 'error_message': error_message,
+    })
+
+
+@router.post('/admin/api-keys/create')
+async def web_admin_api_keys_create(
+    request: Request,
+    name: str = Form(...),
+    db: AsyncSession = Depends(get_session)
+):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return RedirectResponse('/web/login', status_code=303)
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user or not user.is_admin:
+        return RedirectResponse('/web/dashboard', status_code=303)
+
+    import secrets, hashlib
+    from app.models.api_key import APIKey
+    raw = "cem_" + secrets.token_hex(32)
+    key_hash = hashlib.sha256(raw.encode()).hexdigest()
+    key_prefix = raw[:12]
+
+    api_key = APIKey(
+        workspace_id=user.workspace_id,
+        name=name.strip(),
+        key_prefix=key_prefix,
+        key_hash=key_hash,
+        created_at=datetime.utcnow(),
+    )
+    db.add(api_key)
+    await db.commit()
+
+    request.session['new_api_key'] = raw
+    request.session['success_message'] = f'API key "{name}" created. Copy it now — it will not be shown again.'
+    return RedirectResponse('/web/admin/api-keys', status_code=303)
+
+
+@router.post('/admin/api-keys/{key_id}/revoke')
+async def web_admin_api_keys_revoke(request: Request, key_id: int, db: AsyncSession = Depends(get_session)):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return RedirectResponse('/web/login', status_code=303)
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user or not user.is_admin:
+        return RedirectResponse('/web/dashboard', status_code=303)
+    from app.models.api_key import APIKey
+    key = (await db.execute(select(APIKey).where(APIKey.id == key_id, APIKey.workspace_id == user.workspace_id))).scalar_one_or_none()
+    if key:
+        key.is_active = False
+        await db.commit()
+        request.session['success_message'] = f'API key "{key.name}" has been revoked.'
+    return RedirectResponse('/web/admin/api-keys', status_code=303)
+
+
+@router.post('/admin/api-keys/{key_id}/delete')
+async def web_admin_api_keys_delete(request: Request, key_id: int, db: AsyncSession = Depends(get_session)):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return RedirectResponse('/web/login', status_code=303)
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user or not user.is_admin:
+        return RedirectResponse('/web/dashboard', status_code=303)
+    from app.models.api_key import APIKey
+    key = (await db.execute(select(APIKey).where(APIKey.id == key_id, APIKey.workspace_id == user.workspace_id))).scalar_one_or_none()
+    if key:
+        await db.delete(key)
+        await db.commit()
+        request.session['success_message'] = 'API key deleted.'
+    return RedirectResponse('/web/admin/api-keys', status_code=303)
+
+
+# =============================================================================
+# WEBHOOKS — Admin management
+# =============================================================================
+
+@router.get('/admin/webhooks', response_class=HTMLResponse)
+async def web_admin_webhooks(request: Request, db: AsyncSession = Depends(get_session)):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return RedirectResponse('/web/login', status_code=303)
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user or not user.is_admin:
+        return RedirectResponse('/web/dashboard', status_code=303)
+    workspace = (await db.execute(select(Workspace).where(Workspace.id == user.workspace_id))).scalar_one_or_none()
+
+    from app.models.webhook import Webhook
+    hooks = (await db.execute(
+        select(Webhook).where(Webhook.workspace_id == user.workspace_id).order_by(Webhook.created_at.desc())
+    )).scalars().all()
+
+    success_message = request.session.pop('success_message', None)
+    error_message = request.session.pop('error_message', None)
+
+    return templates.TemplateResponse('admin/webhooks.html', {
+        'request': request, 'user': user, 'workspace': workspace,
+        'hooks': hooks, 'success_message': success_message, 'error_message': error_message,
+    })
+
+
+@router.post('/admin/webhooks/create')
+async def web_admin_webhooks_create(
+    request: Request,
+    name: str = Form(...),
+    url: str = Form(...),
+    secret: str = Form(""),
+    events: list = Form(...),
+    db: AsyncSession = Depends(get_session)
+):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return RedirectResponse('/web/login', status_code=303)
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user or not user.is_admin:
+        return RedirectResponse('/web/dashboard', status_code=303)
+    from app.models.webhook import Webhook
+    hook = Webhook(
+        workspace_id=user.workspace_id,
+        name=name.strip(),
+        url=url.strip(),
+        secret=secret.strip() or None,
+        events=",".join(events),
+        created_at=datetime.utcnow(),
+    )
+    db.add(hook)
+    await db.commit()
+    request.session['success_message'] = f'Webhook "{name}" created successfully.'
+    return RedirectResponse('/web/admin/webhooks', status_code=303)
+
+
+@router.post('/admin/webhooks/{hook_id}/toggle')
+async def web_admin_webhooks_toggle(request: Request, hook_id: int, db: AsyncSession = Depends(get_session)):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return RedirectResponse('/web/login', status_code=303)
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user or not user.is_admin:
+        return RedirectResponse('/web/dashboard', status_code=303)
+    from app.models.webhook import Webhook
+    hook = (await db.execute(select(Webhook).where(Webhook.id == hook_id, Webhook.workspace_id == user.workspace_id))).scalar_one_or_none()
+    if hook:
+        hook.is_active = not hook.is_active
+        await db.commit()
+        state = "enabled" if hook.is_active else "disabled"
+        request.session['success_message'] = f'Webhook "{hook.name}" {state}.'
+    return RedirectResponse('/web/admin/webhooks', status_code=303)
+
+
+@router.post('/admin/webhooks/{hook_id}/delete')
+async def web_admin_webhooks_delete(request: Request, hook_id: int, db: AsyncSession = Depends(get_session)):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return RedirectResponse('/web/login', status_code=303)
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user or not user.is_admin:
+        return RedirectResponse('/web/dashboard', status_code=303)
+    from app.models.webhook import Webhook
+    hook = (await db.execute(select(Webhook).where(Webhook.id == hook_id, Webhook.workspace_id == user.workspace_id))).scalar_one_or_none()
+    if hook:
+        await db.delete(hook)
+        await db.commit()
+        request.session['success_message'] = 'Webhook deleted.'
+    return RedirectResponse('/web/admin/webhooks', status_code=303)
+
+
+@router.post('/admin/webhooks/{hook_id}/test')
+async def web_admin_webhooks_test(request: Request, hook_id: int, db: AsyncSession = Depends(get_session)):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return RedirectResponse('/web/login', status_code=303)
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user or not user.is_admin:
+        return RedirectResponse('/web/dashboard', status_code=303)
+    from app.models.webhook import Webhook
+    hook = (await db.execute(select(Webhook).where(Webhook.id == hook_id, Webhook.workspace_id == user.workspace_id))).scalar_one_or_none()
+    if hook:
+        from app.core.webhooks import fire_webhook
+        await fire_webhook(db, user.workspace_id, "ticket.created", {
+            "ticket_number": "TKT-TEST-00001",
+            "subject": "Webhook connectivity test from CEM",
+            "priority": "medium", "category": "test", "status": "open",
+            "guest_name": "Test User", "guest_email": "test@example.com",
+            "created_at": datetime.utcnow().isoformat(),
+        })
+        request.session['success_message'] = f'Test payload sent to "{hook.name}". Check the Last Status column in a moment.'
+    return RedirectResponse('/web/admin/webhooks', status_code=303)

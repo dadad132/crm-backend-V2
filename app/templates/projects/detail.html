@@ -259,7 +259,7 @@ function taskSuggestions() {
   @media (min-width: 769px) and (max-width: 1024px) {
     .kanban-board {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 1rem;
     }
   }
@@ -268,7 +268,7 @@ function taskSuggestions() {
   @media (min-width: 1025px) {
     .kanban-board {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 1rem;
     }
   }
@@ -307,7 +307,7 @@ function taskSuggestions() {
   ] %}
 
   {% for key, label, items, color, border in cols %}
-    <section class="kanban-column rounded-xl border {{ border }} bg-white p-3 flex flex-col">
+    <section class="kanban-column rounded-xl border {{ border }} bg-white p-3 flex flex-col min-w-0 overflow-hidden">
       <div class="flex items-center justify-between mb-2 pb-2 border-b {{ border }}">
         <h3 class="text-sm font-semibold flex items-center gap-2">
           {% if key == 'todo' %}📋{% elif key == 'in_progress' %}🔄{% elif key == 'done' %}✅{% else %}🚫{% endif %}
@@ -315,9 +315,9 @@ function taskSuggestions() {
         </h3>
         <span class="text-xs font-medium px-2 py-0.5 rounded-full {{ color }}">{{ items|length }}</span>
       </div>
-      <div id="col-{{ key }}" class="kanban-column-content flex-1 min-h-[200px] rounded-lg {{ color }}/50 p-2 space-y-2 overflow-y-auto scrollbar-thin">
+      <div id="col-{{ key }}" class="kanban-column-content flex-1 rounded-lg {{ color }} p-2 space-y-2 overflow-y-auto" style="min-height:200px">
         {% for t in items %}
-          <article class="task-card rounded-lg border border-slate-200 bg-white p-3 shadow-sm hover:shadow-md transition-shadow" data-task-id="{{ t.id }}">
+          <article class="task-card rounded-lg border border-slate-200 bg-white p-3 shadow-sm hover:shadow-md transition-shadow min-w-0 overflow-hidden" data-task-id="{{ t.id }}">
             <!-- Attachment indicator at top -->
             {% if attachment_counts.get(t.id, 0) > 0 %}
             <div class="mb-1.5 flex items-center gap-1 text-[10px] text-blue-600">
@@ -326,7 +326,7 @@ function taskSuggestions() {
             </div>
             {% endif %}
             <div class="flex flex-col gap-2">
-              <a href="/web/tasks/{{ t.id }}" class="task-title text-sm font-medium hover:text-blue-600 hover:underline line-clamp-2">{{ t.title }}</a>
+              <a href="/web/tasks/{{ t.id }}" class="task-title text-sm font-medium hover:text-blue-600 hover:underline break-words" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ t.title }}</a>
               <div class="task-meta flex flex-wrap items-center gap-1.5">
                 {% if t.priority %}
                   {% set chip = {'low':'bg-emerald-100 text-emerald-800','medium':'bg-sky-100 text-sky-800','high':'bg-amber-100 text-amber-800','critical':'bg-rose-100 text-rose-800'}[t.priority.value] %}
@@ -339,7 +339,7 @@ function taskSuggestions() {
                 {% endif %}
               </div>
             </div>
-            {% if t.description %}<div class="text-xs text-slate-500 mt-1.5 line-clamp-2">{{ t.description }}</div>{% endif %}
+            {% if t.description %}<div class="text-xs text-slate-500 mt-1.5 break-words" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ t.description }}</div>{% endif %}
             {% set asgs = assignees_map.get(t.id, []) %}
             <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
               <div class="flex items-center gap-1 flex-wrap">

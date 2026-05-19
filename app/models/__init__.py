@@ -42,6 +42,8 @@ from .user_behavior import UserBehavior, UserPreference, SmartSuggestion
 from .support_kb import SupportArticle, SupportConversation, SupportCategory
 from .knowledge_base import KBDiagnosticTree, KBResolvedCase
 from .system_log import SystemLog
+from .api_key import APIKey
+from .webhook import Webhook
 __all__ = [
     "Workspace",
     "User",
@@ -103,4 +105,6 @@ __all__ = [
     "KBDiagnosticTree",
     "KBResolvedCase",
     "SystemLog",
+    "APIKey",
+    "Webhook",
 ]

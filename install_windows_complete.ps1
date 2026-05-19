@@ -157,8 +157,9 @@ Write-Host "[i] Creating application directory: $AppDir" -ForegroundColor Cyan
 New-Item -ItemType Directory -Path $AppDir -Force | Out-Null
 
 Write-Host "[i] Copying application files..." -ForegroundColor Cyan
-if (Test-Path "app") { Copy-Item -Path "app" -Destination "$AppDir\app" -Recurse -Force }
-if (Test-Path "alembic") { Copy-Item -Path "alembic" -Destination "$AppDir\alembic" -Recurse -Force }
+if (Test-Path "app")        { Copy-Item -Path "app"        -Destination "$AppDir\app"        -Recurse -Force }
+if (Test-Path "alembic")    { Copy-Item -Path "alembic"    -Destination "$AppDir\alembic"    -Recurse -Force }
+if (Test-Path "migrations") { Copy-Item -Path "migrations" -Destination "$AppDir\migrations" -Recurse -Force }
 
 $filesToCopy = @("requirements.txt", "alembic.ini", ".env.example", "start_server.py", "auto_update.bat", "README.md")
 foreach ($file in $filesToCopy) {
@@ -210,7 +211,7 @@ Write-Host "[V] Python dependencies installed successfully!" -ForegroundColor Gr
 Write-Host ""
 
 Write-Host "[i] Creating necessary directories..." -ForegroundColor Cyan
-@("logs", "backups", "updates", "app\uploads\comments") | ForEach-Object {
+@("logs", "backups", "updates", "app\uploads\comments", "app\uploads\chat_messages", "app\uploads\tickets", "app\static") | ForEach-Object {
     New-Item -ItemType Directory -Path $_ -Force | Out-Null
 }
 Write-Host "[V] Directories created" -ForegroundColor Green

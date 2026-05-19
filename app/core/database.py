@@ -191,6 +191,31 @@ async def lifespan(app):  # FastAPI lifespan
     except Exception as e:
         logger.warning(f"⚠️  Could not fix attachment paths: {e}")
     
+    # Add gui_theme column to workspace table (added for 5-theme system)
+    try:
+        import sqlite3
+        from pathlib import Path
+        db_path = Path("data.db")
+        if db_path.exists():
+            conn = sqlite3.connect(str(db_path), timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('PRAGMA table_info("workspace")')
+            ws_cols = {row[1] for row in cursor.fetchall()}
+            if ws_cols and "gui_theme" not in ws_cols:
+                logger.info("🔧 Adding gui_theme column to workspace...")
+                cursor.execute("ALTER TABLE workspace ADD COLUMN gui_theme VARCHAR DEFAULT 'crimson'")
+                conn.commit()
+                logger.info("✅ Added workspace.gui_theme")
+            if ws_cols and "anthropic_api_key" not in ws_cols:
+                cursor.execute("ALTER TABLE workspace ADD COLUMN anthropic_api_key VARCHAR")
+                conn.commit()
+            if ws_cols and "bubbles_ai_provider" not in ws_cols:
+                cursor.execute("ALTER TABLE workspace ADD COLUMN bubbles_ai_provider VARCHAR")
+                conn.commit()
+            conn.close()
+    except Exception as e:
+        logger.warning(f"⚠️  Could not migrate workspace schema: {e}")
+
     # Add email_account column to processedmail and change unique constraint
     # from global message_id to per-account (message_id + email_account)
     try:

@@ -127,11 +127,11 @@
         </form>
     </div>
 
-    <!-- Board View (Kanban) -->
+    <!-- Board View (Kanban) — responsive grid -->
     <div id="boardView" class="mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <!-- Open Column -->
-            <div class="bg-blue-50 rounded-lg p-3 min-h-[400px]">
+            <div class="bg-blue-50 rounded-lg p-3" style="min-height:300px">
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="font-semibold text-blue-800">
                         <i class="fas fa-inbox mr-2"></i>Open
@@ -142,12 +142,9 @@
                 </div>
                 <div id="ticket-col-open" class="space-y-2 min-h-[100px]">
                     {% for ticket in tickets if ticket.status == 'open' %}
-                    <div data-ticket-id="{{ ticket.id }}" onclick="window.location='/web/tickets/{{ ticket.id }}'" 
-                         class="ticket-card cursor-pointer bg-white rounded-lg shadow-sm p-3 hover:shadow-md transition-shadow border-l-4 
-                        {% if ticket.priority == 'urgent' %}border-red-500
-                        {% elif ticket.priority == 'high' %}border-orange-500
-                        {% elif ticket.priority == 'medium' %}border-yellow-500
-                        {% else %}border-gray-300{% endif %}">
+                    <div data-ticket-id="{{ ticket.id }}" onclick="window.location='/web/tickets/{{ ticket.id }}'"
+                         class="ticket-card cursor-pointer bg-white rounded-lg shadow-sm p-3 hover:shadow-md transition-shadow"
+                         style="border-left: 4px solid {% if ticket.priority == 'urgent' %}#ef4444{% elif ticket.priority == 'high' %}#f97316{% elif ticket.priority == 'medium' %}#facc15{% else %}#bfdbfe{% endif %}">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-xs text-gray-500">{{ ticket.ticket_number }}</span>
                             <div class="flex items-center gap-1">
@@ -161,15 +158,21 @@
                                 {% endif %}
                             </div>
                         </div>
-                        <div class="font-medium text-sm text-gray-900 mb-2 line-clamp-2">{{ ticket.subject }}</div>
-                        <div class="flex items-center justify-between">
+                        <div class="font-medium text-sm text-gray-900 mb-1.5 line-clamp-2">{{ ticket.subject }}</div>
+                        {% if ticket.guest_name or ticket.guest_surname or ticket.guest_email %}
+                        <div class="text-xs text-indigo-600 mb-1.5 truncate">
+                            <i class="fas fa-user-circle mr-1"></i>{{ ((ticket.guest_name or '') + ' ' + (ticket.guest_surname or '')).strip() or ticket.guest_email }}
+                        </div>
+                        {% endif %}
+                        <div class="flex items-center justify-between gap-1 flex-wrap">
                             {% if ticket.priority == 'urgent' %}
-                            <span class="px-1.5 py-0.5 text-xs rounded bg-red-100 text-red-700">Urgent</span>
+                            <span class="px-1.5 py-0.5 text-xs rounded bg-red-100 text-red-700 whitespace-nowrap">Urgent</span>
                             {% elif ticket.priority == 'high' %}
-                            <span class="px-1.5 py-0.5 text-xs rounded bg-orange-100 text-orange-700">High</span>
-                            {% endif %}
-                            {% if ticket.is_guest %}
-                            <span class="text-xs text-indigo-600"><i class="fas fa-user-circle"></i></span>
+                            <span class="px-1.5 py-0.5 text-xs rounded bg-orange-100 text-orange-700 whitespace-nowrap">High</span>
+                            {% elif ticket.priority == 'medium' %}
+                            <span class="px-1.5 py-0.5 text-xs rounded bg-yellow-100 text-yellow-700 whitespace-nowrap">Medium</span>
+                            {% else %}
+                            <span class="px-1.5 py-0.5 text-xs rounded bg-blue-50 text-blue-600 whitespace-nowrap">Low</span>
                             {% endif %}
                         </div>
                     </div>
@@ -178,7 +181,7 @@
             </div>
 
             <!-- In Progress Column -->
-            <div class="bg-purple-50 rounded-lg p-3 min-h-[400px]">
+            <div class="bg-purple-50 rounded-lg p-3" style="min-height:300px">
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="font-semibold text-purple-800">
                         <i class="fas fa-spinner mr-2"></i>In Progress
@@ -189,12 +192,9 @@
                 </div>
                 <div id="ticket-col-in_progress" class="space-y-2 min-h-[100px]">
                     {% for ticket in tickets if ticket.status == 'in_progress' %}
-                    <div data-ticket-id="{{ ticket.id }}" onclick="window.location='/web/tickets/{{ ticket.id }}'" 
-                         class="ticket-card cursor-pointer bg-white rounded-lg shadow-sm p-3 hover:shadow-md transition-shadow border-l-4 
-                        {% if ticket.priority == 'urgent' %}border-red-500
-                        {% elif ticket.priority == 'high' %}border-orange-500
-                        {% elif ticket.priority == 'medium' %}border-yellow-500
-                        {% else %}border-gray-300{% endif %}">
+                    <div data-ticket-id="{{ ticket.id }}" onclick="window.location='/web/tickets/{{ ticket.id }}'"
+                         class="ticket-card cursor-pointer bg-white rounded-lg shadow-sm p-3 hover:shadow-md transition-shadow"
+                         style="border-left: 4px solid {% if ticket.priority == 'urgent' %}#ef4444{% elif ticket.priority == 'high' %}#f97316{% elif ticket.priority == 'medium' %}#facc15{% else %}#bfdbfe{% endif %}">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-xs text-gray-500">{{ ticket.ticket_number }}</span>
                             <div class="flex items-center gap-1">
@@ -208,15 +208,21 @@
                                 {% endif %}
                             </div>
                         </div>
-                        <div class="font-medium text-sm text-gray-900 mb-2 line-clamp-2">{{ ticket.subject }}</div>
-                        <div class="flex items-center justify-between">
+                        <div class="font-medium text-sm text-gray-900 mb-1.5 line-clamp-2">{{ ticket.subject }}</div>
+                        {% if ticket.guest_name or ticket.guest_surname or ticket.guest_email %}
+                        <div class="text-xs text-indigo-600 mb-1.5 truncate">
+                            <i class="fas fa-user-circle mr-1"></i>{{ ((ticket.guest_name or '') + ' ' + (ticket.guest_surname or '')).strip() or ticket.guest_email }}
+                        </div>
+                        {% endif %}
+                        <div class="flex items-center justify-between gap-1 flex-wrap">
                             {% if ticket.priority == 'urgent' %}
-                            <span class="px-1.5 py-0.5 text-xs rounded bg-red-100 text-red-700">Urgent</span>
+                            <span class="px-1.5 py-0.5 text-xs rounded bg-red-100 text-red-700 whitespace-nowrap">Urgent</span>
                             {% elif ticket.priority == 'high' %}
-                            <span class="px-1.5 py-0.5 text-xs rounded bg-orange-100 text-orange-700">High</span>
-                            {% endif %}
-                            {% if ticket.is_guest %}
-                            <span class="text-xs text-indigo-600"><i class="fas fa-user-circle"></i></span>
+                            <span class="px-1.5 py-0.5 text-xs rounded bg-orange-100 text-orange-700 whitespace-nowrap">High</span>
+                            {% elif ticket.priority == 'medium' %}
+                            <span class="px-1.5 py-0.5 text-xs rounded bg-yellow-100 text-yellow-700 whitespace-nowrap">Medium</span>
+                            {% else %}
+                            <span class="px-1.5 py-0.5 text-xs rounded bg-blue-50 text-blue-600 whitespace-nowrap">Low</span>
                             {% endif %}
                         </div>
                     </div>
@@ -225,7 +231,7 @@
             </div>
 
             <!-- Waiting Column -->
-            <div class="bg-yellow-50 rounded-lg p-3 min-h-[400px]">
+            <div class="bg-yellow-50 rounded-lg p-3" style="min-height:300px">
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="font-semibold text-yellow-800">
                         <i class="fas fa-clock mr-2"></i>Waiting
@@ -236,12 +242,9 @@
                 </div>
                 <div id="ticket-col-waiting" class="space-y-2 min-h-[100px]">
                     {% for ticket in tickets if ticket.status == 'waiting' %}
-                    <div data-ticket-id="{{ ticket.id }}" onclick="window.location='/web/tickets/{{ ticket.id }}'" 
-                         class="ticket-card cursor-pointer bg-white rounded-lg shadow-sm p-3 hover:shadow-md transition-shadow border-l-4 
-                        {% if ticket.priority == 'urgent' %}border-red-500
-                        {% elif ticket.priority == 'high' %}border-orange-500
-                        {% elif ticket.priority == 'medium' %}border-yellow-500
-                        {% else %}border-gray-300{% endif %}">
+                    <div data-ticket-id="{{ ticket.id }}" onclick="window.location='/web/tickets/{{ ticket.id }}'"
+                         class="ticket-card cursor-pointer bg-white rounded-lg shadow-sm p-3 hover:shadow-md transition-shadow"
+                         style="border-left: 4px solid {% if ticket.priority == 'urgent' %}#ef4444{% elif ticket.priority == 'high' %}#f97316{% elif ticket.priority == 'medium' %}#facc15{% else %}#bfdbfe{% endif %}">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-xs text-gray-500">{{ ticket.ticket_number }}</span>
                             <div class="flex items-center gap-1">
@@ -255,15 +258,21 @@
                                 {% endif %}
                             </div>
                         </div>
-                        <div class="font-medium text-sm text-gray-900 mb-2 line-clamp-2">{{ ticket.subject }}</div>
-                        <div class="flex items-center justify-between">
+                        <div class="font-medium text-sm text-gray-900 mb-1.5 line-clamp-2">{{ ticket.subject }}</div>
+                        {% if ticket.guest_name or ticket.guest_surname or ticket.guest_email %}
+                        <div class="text-xs text-indigo-600 mb-1.5 truncate">
+                            <i class="fas fa-user-circle mr-1"></i>{{ ((ticket.guest_name or '') + ' ' + (ticket.guest_surname or '')).strip() or ticket.guest_email }}
+                        </div>
+                        {% endif %}
+                        <div class="flex items-center justify-between gap-1 flex-wrap">
                             {% if ticket.priority == 'urgent' %}
-                            <span class="px-1.5 py-0.5 text-xs rounded bg-red-100 text-red-700">Urgent</span>
+                            <span class="px-1.5 py-0.5 text-xs rounded bg-red-100 text-red-700 whitespace-nowrap">Urgent</span>
                             {% elif ticket.priority == 'high' %}
-                            <span class="px-1.5 py-0.5 text-xs rounded bg-orange-100 text-orange-700">High</span>
-                            {% endif %}
-                            {% if ticket.is_guest %}
-                            <span class="text-xs text-indigo-600"><i class="fas fa-user-circle"></i></span>
+                            <span class="px-1.5 py-0.5 text-xs rounded bg-orange-100 text-orange-700 whitespace-nowrap">High</span>
+                            {% elif ticket.priority == 'medium' %}
+                            <span class="px-1.5 py-0.5 text-xs rounded bg-yellow-100 text-yellow-700 whitespace-nowrap">Medium</span>
+                            {% else %}
+                            <span class="px-1.5 py-0.5 text-xs rounded bg-blue-50 text-blue-600 whitespace-nowrap">Low</span>
                             {% endif %}
                         </div>
                     </div>
@@ -291,11 +300,8 @@
     <div id="listView" class="hidden space-y-3">
         {% if tickets %}
             {% for ticket in tickets %}
-            <div class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border-l-4 
-                {% if ticket.priority == 'urgent' %}border-red-500
-                {% elif ticket.priority == 'high' %}border-orange-500
-                {% elif ticket.priority == 'medium' %}border-yellow-500
-                {% else %}border-gray-300{% endif %}">
+            <div class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                 style="border-left: 4px solid {% if ticket.priority == 'urgent' %}#ef4444{% elif ticket.priority == 'high' %}#f97316{% elif ticket.priority == 'medium' %}#facc15{% else %}#bfdbfe{% endif %}">
                 <a href="/web/tickets/{{ ticket.id }}" class="block p-3 sm:p-4">
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex-1 min-w-0">
@@ -369,6 +375,12 @@
                             <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-1">
                                 {{ ticket.subject }}
                             </h3>
+
+                            {% if ticket.guest_name or ticket.guest_surname or ticket.guest_email %}
+                            <p class="text-xs text-indigo-600 mb-1">
+                                <i class="fas fa-user-circle mr-1"></i>{{ ((ticket.guest_name or '') + ' ' + (ticket.guest_surname or '')).strip() or ticket.guest_email }}
+                            </p>
+                            {% endif %}
 
                             {% if ticket.description %}
                             <p class="text-xs sm:text-sm text-gray-600 line-clamp-2 mb-2">

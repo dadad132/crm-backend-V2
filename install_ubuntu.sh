@@ -157,8 +157,11 @@ fi
 print_info "Creating necessary directories..."
 mkdir -p logs
 mkdir -p backups
-mkdir -p app/uploads/comments
 mkdir -p updates
+mkdir -p app/uploads/comments
+mkdir -p app/uploads/chat_messages
+mkdir -p app/uploads/tickets
+mkdir -p app/static
 print_status "Directories created"
 
 # Create .env file if it doesn't exist

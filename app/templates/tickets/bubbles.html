@@ -1,760 +1,418 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat with Bubbles - Support Assistant</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat with Bubbles — {{ workspace.site_title if workspace and workspace.site_title else 'Support' }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    {% if workspace and workspace.gui_theme == 'ocean' %}
+    :root { --brand: #0284c7; --brand-dark: #0369a1; --brand-xdark: #075985; --brand-light: #e0f2fe; --brand-ring: #7dd3fc; --brand-mid: #bae6fd; }
+    {% elif workspace and workspace.gui_theme == 'forest' %}
+    :root { --brand: #16a34a; --brand-dark: #15803d; --brand-xdark: #166534; --brand-light: #dcfce7; --brand-ring: #86efac; --brand-mid: #bbf7d0; }
+    {% elif workspace and workspace.gui_theme == 'midnight' %}
+    :root { --brand: #4f46e5; --brand-dark: #4338ca; --brand-xdark: #3730a3; --brand-light: #e0e7ff; --brand-ring: #a5b4fc; --brand-mid: #c7d2fe; }
+    {% elif workspace and workspace.gui_theme == 'ember' %}
+    :root { --brand: #ea580c; --brand-dark: #c2410c; --brand-xdark: #9a3412; --brand-light: #ffedd5; --brand-ring: #fdba74; --brand-mid: #fed7aa; }
+    {% else %}
+    :root { --brand: #b91c1c; --brand-dark: #991b1b; --brand-xdark: #7f1d1d; --brand-light: #fee2e2; --brand-ring: #fca5a5; --brand-mid: #fecaca; }
+    {% endif %}
+    body { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 60%, var(--brand-light) 100%); }
+    .brand-btn { background: linear-gradient(135deg, var(--brand), var(--brand-dark)); color: #fff; transition: all .2s; }
+    .brand-btn:hover { background: linear-gradient(135deg, var(--brand-dark), var(--brand-xdark)); box-shadow: 0 6px 20px rgba(0,0,0,.18); }
+    .brand-avatar { background: linear-gradient(135deg, var(--brand), var(--brand-dark)); }
+    .brand-text { color: var(--brand); }
+    .brand-bg-light { background-color: var(--brand-light); }
+    .brand-bg-mid { background-color: var(--brand-mid); }
+    .brand-focus:focus { outline: none; box-shadow: 0 0 0 3px var(--brand-ring); border-color: var(--brand); }
+    .brand-chip { background: var(--brand-mid); color: var(--brand-dark); }
+    .brand-chip:hover { background: var(--brand-ring); }
+    .solution-card { border: 1px solid var(--brand-ring); background: linear-gradient(135deg, var(--brand-light) 0%, #fff 100%); }
+    @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+    .dot-bounce { animation: bounce 1.2s infinite; }
+  </style>
 </head>
-<body class="bg-gradient-to-br from-purple-50 via-slate-50 to-pink-50 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <div class="max-w-3xl mx-auto">
-            <!-- Header -->
-            <div class="text-center mb-6">
-                <div class="inline-block p-4 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl shadow-lg mb-4">
-                    <span class="text-4xl">🫧</span>
-                </div>
-                <h1 class="text-4xl font-bold text-gray-900 mb-2">Chat with Bubbles</h1>
-                <p class="text-gray-600 text-lg">Your friendly AI support assistant</p>
-            </div>
+<body class="min-h-screen py-6 px-4">
 
-            <!-- Navigation to Ticket Form -->
-            <div class="flex justify-center mb-6">
-                <a href="/web/tickets/guest" 
-                   class="px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl shadow-md hover:border-blue-400 hover:text-blue-600 hover:shadow-lg transition-all duration-200 flex items-center gap-3">
-                    <i class="fas fa-ticket-alt text-xl"></i>
-                    <div class="text-left">
-                        <div class="font-semibold">Submit or Track a Ticket</div>
-                        <div class="text-sm text-gray-500">Create a support request or check status</div>
-                    </div>
-                </a>
-            </div>
+  <!-- Top nav -->
+  <div class="max-w-2xl mx-auto mb-5 flex items-center justify-between">
+    <a href="/" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1.5 transition-colors">
+      <i class="fas fa-arrow-left text-xs"></i> Back to Portal
+    </a>
+    <a href="/web/tickets/guest"
+       class="text-sm font-medium brand-text hover:opacity-80 flex items-center gap-1.5 transition-opacity">
+      <i class="fas fa-ticket-alt text-xs"></i> Submit a Ticket
+    </a>
+  </div>
 
-            <!-- Optional Email Input for Returning Users -->
-            <div id="email-prompt" class="bg-white rounded-xl shadow-md p-4 mb-4 border border-purple-100">
-                <div class="flex items-center gap-3">
-                    <div class="text-purple-500">
-                        <i class="fas fa-user-circle text-2xl"></i>
-                    </div>
-                    <div class="flex-1">
-                        <p class="text-sm text-gray-600 mb-2">
-                            <strong>Optional:</strong> Enter your email so I can remember your previous issues
-                        </p>
-                        <div class="flex gap-2">
-                            <input type="email" id="guest-email" 
-                                   class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-                                   placeholder="your@email.com">
-                            <button onclick="saveEmail()" class="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 text-sm">
-                                <i class="fas fa-check"></i>
-                            </button>
-                            <button onclick="dismissEmailPrompt()" class="px-4 py-2 bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200 text-sm">
-                                Skip
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  <div class="max-w-2xl mx-auto">
 
-            <!-- Chat Container -->
-            <div class="bg-white rounded-xl shadow-xl overflow-hidden border border-slate-200">
-                <div class="p-6">
-                    <!-- Chat Messages Area -->
-                    <div id="chat-container" class="border border-gray-200 rounded-xl bg-gray-50 mb-4 h-96 overflow-y-auto p-4">
-                        <div id="chat-messages">
-                            <!-- Welcome message -->
-                            <div class="flex items-start gap-3 mb-4">
-                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center flex-shrink-0">
-                                    <span class="text-white text-lg">🫧</span>
-                                </div>
-                                <div class="bg-white rounded-xl p-4 shadow-sm max-w-lg">
-                                    <p class="text-gray-700 text-lg">👋 Hi there! I'm <strong>Bubbles</strong>, your friendly support assistant!</p>
-                                    <p class="text-gray-600 mt-2">I'll guide you step-by-step through troubleshooting. Just tell me what's wrong!</p>
-                                    <p class="text-gray-400 text-sm mt-2">💡 Tip: You can also send a photo of an error message!</p>
-                                    
-                                    <!-- Quick Reply Buttons -->
-                                    <div class="mt-4 pt-3 border-t border-gray-100">
-                                        <p class="text-sm text-gray-500 mb-3">Click an issue to start guided troubleshooting:</p>
-                                        <div class="flex flex-wrap gap-2" id="initial-quick-replies">
-                                            <button onclick="sendQuickReply('My printer is not working')" 
-                                                    class="px-3 py-2 bg-green-100 text-green-700 rounded-full text-sm hover:bg-green-200 transition-colors">
-                                                🖨️ Printer problem
-                                            </button>
-                                            <button onclick="sendQuickReply('I cannot connect to WiFi')" 
-                                                    class="px-3 py-2 bg-orange-100 text-orange-700 rounded-full text-sm hover:bg-orange-200 transition-colors">
-                                                📶 WiFi issues
-                                            </button>
-                                            <button onclick="sendQuickReply('My email is not working')" 
-                                                    class="px-3 py-2 bg-purple-100 text-purple-700 rounded-full text-sm hover:bg-purple-200 transition-colors">
-                                                📧 Email issues
-                                            </button>
-                                            <button onclick="sendQuickReply('My computer is running slow')" 
-                                                    class="px-3 py-2 bg-red-100 text-red-700 rounded-full text-sm hover:bg-red-200 transition-colors">
-                                                🐢 Slow computer
-                                            </button>
-                                            <button onclick="sendQuickReply('I need to reset my password')" 
-                                                    class="px-3 py-2 bg-blue-100 text-blue-700 rounded-full text-sm hover:bg-blue-200 transition-colors">
-                                                🔑 Password reset
-                                            </button>
-                                            <button onclick="sendQuickReply('Something else')" 
-                                                    class="px-3 py-2 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors">
-                                                ❓ Other issue
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Hidden image inputs -->
-                    <input type="file" id="chat-image-input" accept="image/*" class="hidden" onchange="handleChatImage(this)">
-                    <input type="file" id="chat-camera-input" accept="image/*" capture="environment" class="hidden" onchange="handleChatImage(this)">
-                    
-                    <!-- Chat Input -->
-                    <div class="flex gap-2">
-                        <input type="text" id="chat-input" 
-                               class="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-lg"
-                               placeholder="Describe your issue or ask a question..."
-                               onkeypress="if(event.key === 'Enter') sendMessage()">
-                        <button type="button" onclick="document.getElementById('chat-image-input').click()" 
-                                class="px-4 py-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all duration-200"
-                                title="Upload a screenshot">
-                            <i class="fas fa-image text-lg"></i>
-                        </button>
-                        <button type="button" id="chat-camera-btn" onclick="document.getElementById('chat-camera-input').click()" 
-                                class="hidden px-4 py-3 bg-green-100 text-green-600 rounded-xl hover:bg-green-200 transition-all duration-200"
-                                title="Take a photo">
-                            <i class="fas fa-camera text-lg"></i>
-                        </button>
-                        <button onclick="sendMessage()" id="send-btn"
-                                class="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-purple-700 shadow-md hover:shadow-lg transition-all flex items-center gap-2">
-                            <i class="fas fa-paper-plane"></i>
-                            Send
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Help Text -->
-            <div class="mt-6 text-center">
-                <p class="text-gray-500 mb-3">
-                    <i class="fas fa-info-circle mr-1"></i>
-                    Can't find what you need? 
-                    <a href="/web/tickets/guest" class="text-purple-600 hover:text-purple-700 font-medium">
-                        Submit a support ticket
-                    </a>
-                </p>
-                <p class="text-sm text-gray-400">
-                    <i class="fas fa-lock mr-1"></i>
-                    Your conversation is private and secure.
-                </p>
-            </div>
-        </div>
+    <!-- Header -->
+    <div class="text-center mb-5">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl brand-avatar shadow-lg mb-3">
+        <span class="text-3xl">🫧</span>
+      </div>
+      <h1 class="text-3xl font-bold text-gray-900">Chat with Bubbles</h1>
+      <p class="text-gray-500 mt-1 text-sm">Your AI support assistant — here to help!</p>
     </div>
 
-    <script>
-        // Session state
-        let sessionId = null;
-        let guestEmail = localStorage.getItem('bubbles_guest_email') || '';
-        let currentProblem = '';
-        let currentSolution = '';
-        let currentArticleId = null;
-        let conversationHistory = [];
-        let failedAttempts = 0;
-        
-        // Troubleshooting flow state
-        let currentFlowName = null;
-        let currentFlowStep = null;
-        let stepsTried = [];
-        
-        // Ticket prefill data
-        let ticketPrefill = null;
-        
-        // Initialize email prompt
-        function initEmailPrompt() {
-            if (guestEmail) {
-                document.getElementById('email-prompt').style.display = 'none';
-            }
-        }
-        
-        function saveEmail() {
-            const email = document.getElementById('guest-email').value.trim();
-            if (email && email.includes('@')) {
-                guestEmail = email;
-                localStorage.setItem('bubbles_guest_email', email);
-                document.getElementById('email-prompt').style.display = 'none';
-                addMessage(`<p class="text-gray-700">Thanks! I'll remember you for next time. 💜</p>`);
-            }
-        }
-        
-        function dismissEmailPrompt() {
-            document.getElementById('email-prompt').style.display = 'none';
-        }
-        
-        // Quick reply function
-        function sendQuickReply(message) {
-            document.getElementById('chat-input').value = message;
-            // Hide initial quick replies after first use
-            const initialReplies = document.getElementById('initial-quick-replies');
-            if (initialReplies) {
-                initialReplies.parentElement.remove();
-            }
-            sendMessage();
-        }
-        
-        // Handle flow button clicks
-        function handleFlowButton(value, nextStep, action) {
-            stepsTried.push(value);
-            
-            if (action === 'create_ticket') {
-                goToTicketForm();
-                return;
-            }
-            
-            if (nextStep === 'restart') {
-                currentFlowStep = null;
-                sendQuickReply('Let me try again');
-                return;
-            }
-            
-            if (nextStep === 'new_issue') {
-                currentFlowName = null;
-                currentFlowStep = null;
-                addMessage(`<p class="text-gray-700">No problem! What else can I help you with? 🫧</p>`);
-                return;
-            }
-            
-            if (nextStep === 'goodbye') {
-                currentFlowName = null;
-                currentFlowStep = null;
-                addMessage(`<p class="text-gray-700">Have a great day! 👋 I'm always here if you need me! 🫧</p>`);
-                return;
-            }
-            
-            // Continue to next step
-            currentFlowStep = nextStep;
-            sendFlowRequest(value);
-        }
-        
-        async function sendFlowRequest(userResponse) {
-            addMessage(`<p class="text-white">${userResponse}</p>`, true);
-            conversationHistory.push({ role: 'user', content: userResponse });
-            
-            addTypingIndicator();
-            
-            try {
-                const response = await fetch('/web/tickets/support/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        message: userResponse,
-                        session_id: sessionId,
-                        guest_email: guestEmail,
-                        flow_name: currentFlowName,
-                        flow_step: currentFlowStep,
-                        conversation_history: conversationHistory.slice(-10)
-                    })
-                });
-                
-                const data = await response.json();
-                sessionId = data.session_id;
-                
-                removeTypingIndicator();
-                handleResponse(data);
-                
-            } catch (error) {
-                removeTypingIndicator();
-                addMessage(`<p class="text-red-600"><i class="fas fa-exclamation-circle mr-2"></i>Sorry, something went wrong. Please try again.</p>`);
-            }
-        }
-        
-        function addMessage(content, isUser = false) {
-            const container = document.getElementById('chat-messages');
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'flex items-start gap-3 mb-4 ' + (isUser ? 'flex-row-reverse' : '');
-            
-            const avatar = isUser 
-                ? '<div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0"><i class="fas fa-user text-white"></i></div>'
-                : '<div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center flex-shrink-0"><span class="text-white text-lg">🫧</span></div>';
-            
-            const bubbleClass = isUser ? 'bg-blue-500 text-white' : 'bg-white';
-            
-            msgDiv.innerHTML = `
-                ${avatar}
-                <div class="${bubbleClass} rounded-xl p-4 shadow-sm max-w-lg">
-                    ${content}
-                </div>
-            `;
-            
-            container.appendChild(msgDiv);
-            scrollToBottom();
-        }
-        
-        function addQuickReplies(replies, flowName) {
-            const container = document.getElementById('chat-messages');
-            const repliesDiv = document.createElement('div');
-            repliesDiv.className = 'flex items-start gap-3 mb-4';
-            
-            let buttonsHtml = replies.map(reply => {
-                const action = reply.action ? `'${reply.action}'` : 'null';
-                return `<button onclick="handleFlowButton('${reply.text}', '${reply.next || ''}', ${action})" 
-                        class="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm font-medium border border-purple-200">
-                    ${reply.text}
-                </button>`;
-            }).join('');
-            
-            repliesDiv.innerHTML = `
-                <div class="w-10 h-10 flex-shrink-0"></div>
-                <div class="flex flex-wrap gap-2 max-w-lg">
-                    ${buttonsHtml}
-                </div>
-            `;
-            
-            container.appendChild(repliesDiv);
-            scrollToBottom();
-        }
-        
-        function addVideoTutorial(tutorial) {
-            if (!tutorial) return;
-            
-            const container = document.getElementById('chat-messages');
-            const tutDiv = document.createElement('div');
-            tutDiv.className = 'flex items-start gap-3 mb-4';
-            
-            let linksHtml = tutorial.links.map(link => 
-                `<a href="${link.url}" target="_blank" class="text-blue-600 hover:text-blue-800 hover:underline text-sm">
-                    <i class="fas fa-play-circle mr-1"></i>${link.name}
-                </a>`
-            ).join(' | ');
-            
-            tutDiv.innerHTML = `
-                <div class="w-10 h-10 flex-shrink-0"></div>
-                <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 max-w-lg">
-                    <p class="text-sm text-blue-800 font-medium"><i class="fas fa-video mr-2"></i>${tutorial.title}</p>
-                    <p class="text-xs text-blue-600 mt-1">${tutorial.description}</p>
-                    <div class="mt-2">${linksHtml}</div>
-                </div>
-            `;
-            
-            container.appendChild(tutDiv);
-            scrollToBottom();
-        }
-        
-        function addSystemStatus(statusMsg) {
-            const container = document.getElementById('chat-messages');
-            const statusDiv = document.createElement('div');
-            statusDiv.className = 'flex items-start gap-3 mb-4';
-            
-            statusDiv.innerHTML = `
-                <div class="w-10 h-10 flex-shrink-0"></div>
-                <div class="bg-yellow-50 border border-yellow-300 rounded-xl p-3 max-w-lg">
-                    <p class="text-sm text-yellow-800">${statusMsg.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')}</p>
-                </div>
-            `;
-            
-            container.appendChild(statusDiv);
-            scrollToBottom();
-        }
-        
-        function addSolutionCard(solution, isKB = false) {
-            const container = document.getElementById('chat-messages');
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'flex items-start gap-3 mb-4';
-            
-            const source = isKB ? '📚 From Knowledge Base' : '🌐 From Web Search';
-            const successRate = solution.success_rate ? `<span class="text-green-600"><i class="fas fa-check-circle"></i> ${Math.round(solution.success_rate)}% success rate</span>` : '';
-            
-            const content = isKB ? solution.solution : solution.suggestion;
-            const title = solution.title || 'Suggested Solution';
-            
-            msgDiv.innerHTML = `
-                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center flex-shrink-0">
-                    <span class="text-white text-lg">🫧</span>
-                </div>
-                <div class="bg-gradient-to-br from-purple-50 to-white rounded-xl p-4 shadow-sm border border-purple-200 max-w-lg">
-                    <div class="text-xs text-purple-600 mb-2">${source} ${successRate}</div>
-                    <h4 class="font-semibold text-gray-800 mb-2">${title}</h4>
-                    <p class="text-gray-700 text-sm mb-3">${content}</p>
-                    ${solution.source ? `<a href="${solution.source}" target="_blank" class="text-xs text-blue-500 hover:underline"><i class="fas fa-external-link-alt mr-1"></i>View source</a>` : ''}
-                    <div class="flex gap-2 mt-3 pt-3 border-t border-purple-100">
-                        <button onclick="sendFeedback(true, ${solution.id || 'null'}, '${isKB}')" 
-                                class="flex-1 px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm">
-                            <i class="fas fa-thumbs-up mr-1"></i>This helped!
-                        </button>
-                        <button onclick="sendFeedback(false, ${solution.id || 'null'}, '${isKB}')" 
-                                class="flex-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm">
-                            <i class="fas fa-thumbs-down mr-1"></i>Not helpful
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            container.appendChild(msgDiv);
-            scrollToBottom();
-            
-            currentSolution = content;
-            currentArticleId = solution.id || null;
-        }
-        
-        function addTypingIndicator() {
-            const container = document.getElementById('chat-messages');
-            const typing = document.createElement('div');
-            typing.id = 'typing-indicator';
-            typing.className = 'flex items-start gap-3 mb-4';
-            typing.innerHTML = `
-                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center flex-shrink-0">
-                    <span class="text-white text-lg">🫧</span>
-                </div>
-                <div class="bg-white rounded-xl p-4 shadow-sm">
-                    <div class="flex gap-1 items-center">
-                        <span class="text-sm text-gray-400 mr-2">Bubbles is thinking</span>
-                        <span class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
-                        <span class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
-                        <span class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
-                    </div>
-                </div>
-            `;
-            container.appendChild(typing);
-            scrollToBottom();
-        }
-        
-        function removeTypingIndicator() {
-            const typing = document.getElementById('typing-indicator');
-            if (typing) typing.remove();
-        }
-        
-        function scrollToBottom() {
-            const container = document.getElementById('chat-container');
-            container.scrollTop = container.scrollHeight;
-        }
-        
-        function goToTicketForm() {
-            // Store conversation data for ticket prefill
-            if (ticketPrefill) {
-                localStorage.setItem('bubbles_ticket_prefill', JSON.stringify(ticketPrefill));
-            } else {
-                localStorage.setItem('bubbles_ticket_prefill', JSON.stringify({
-                    subject: currentProblem.substring(0, 100),
-                    description: `Conversation with Bubbles:\n${conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n')}\n\nSteps tried:\n${stepsTried.join('\n')}`,
-                    steps_tried: stepsTried
-                }));
-            }
-            window.location.href = '/web/tickets/guest';
-        }
-        
-        function handleResponse(data) {
-            // Handle welcome back message
-            if (data.welcome_back_message) {
-                addMessage(`<p class="text-gray-700">${data.welcome_back_message}</p>`);
-            }
-            
-            // Handle system status
-            if (data.system_status) {
-                addSystemStatus(data.system_status);
-            }
-            
-            // Handle conversational response with empathy prefix
-            if (data.is_conversational && data.bubbles_response) {
-                let formattedResponse = data.bubbles_response
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/\n\n/g, '</p><p class="text-gray-700 mt-2">')
-                    .replace(/\n/g, '<br>');
-                addMessage(`<p class="text-gray-700">${formattedResponse}</p>`);
-                conversationHistory.push({ role: 'assistant', content: data.bubbles_response });
-                
-                // Update flow state
-                if (data.flow_name) {
-                    currentFlowName = data.flow_name;
-                }
-                if (data.flow_step !== undefined) {
-                    currentFlowStep = data.flow_step;
-                }
-                
-                // Add quick replies if available
-                if (data.quick_replies && data.quick_replies.length > 0) {
-                    addQuickReplies(data.quick_replies, currentFlowName);
-                }
-                
-                // Add video tutorial if available
-                if (data.video_tutorial) {
-                    addVideoTutorial(data.video_tutorial);
-                }
-                
-                // Store ticket prefill data
-                if (data.ticket_prefill) {
-                    ticketPrefill = data.ticket_prefill;
-                }
-                
-                return;
-            }
-            
-            // Handle KB results
-            if (data.found_in_kb && data.kb_articles && data.kb_articles.length > 0) {
-                addMessage(`<p class="text-gray-700">I found <strong>${data.kb_articles.length}</strong> solution(s) that might help:</p>`);
-                conversationHistory.push({ role: 'assistant', content: `Found ${data.kb_articles.length} KB solutions` });
-                
-                data.kb_articles.forEach(article => {
-                    addSolutionCard(article, true);
-                });
-                return;
-            }
-            
-            // Handle web results
-            if (data.web_results && data.web_results.length > 0) {
-                addMessage(`<p class="text-gray-700">I searched the web and found some suggestions:</p>`);
-                conversationHistory.push({ role: 'assistant', content: 'Found web search results' });
-                
-                data.web_results.forEach(result => {
-                    addSolutionCard(result, false);
-                });
-                return;
-            }
-            
-            // No solutions found
-            failedAttempts++;
-            conversationHistory.push({ role: 'assistant', content: 'No solutions found' });
-            
-            if (failedAttempts >= 3) {
-                addMessage(`
-                    <p class="text-gray-700 mb-3">
-                        <i class="fas fa-user-tie text-purple-500 mr-2"></i>
-                        I've tried my best but I think this needs human expertise. Let me connect you with our support team!
-                    </p>
-                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 mt-2">
-                        <p class="text-sm text-purple-700 mb-2"><strong>Creating a ticket will:</strong></p>
-                        <ul class="text-xs text-purple-600 list-disc list-inside space-y-1">
-                            <li>Alert our support team immediately</li>
-                            <li>Include our conversation so they have context</li>
-                            <li>Send you email updates on progress</li>
-                        </ul>
-                    </div>
-                    <button onclick="goToTicketForm()" class="mt-3 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
-                        <i class="fas fa-ticket-alt mr-2"></i>Create Support Ticket
-                    </button>
-                `);
-            } else {
-                addMessage(`
-                    <p class="text-gray-700 mb-3">Hmm, I couldn't find specific solutions for this. Could you try describing it differently?</p>
-                    <div class="flex gap-2 flex-wrap">
-                        <button onclick="document.getElementById('chat-input').focus()" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm">
-                            <i class="fas fa-redo mr-1"></i>Try again
-                        </button>
-                        <button onclick="goToTicketForm()" class="px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">
-                            <i class="fas fa-ticket-alt mr-1"></i>Create Ticket
-                        </button>
-                    </div>
-                `);
-            }
-        }
-        
-        async function sendMessage() {
-            const input = document.getElementById('chat-input');
-            const message = input.value.trim();
-            
-            if (!message) return;
-            
-            currentProblem = message;
-            conversationHistory.push({ role: 'user', content: message });
-            
-            addMessage(`<p class="text-white">${message}</p>`, true);
-            input.value = '';
-            
-            addTypingIndicator();
-            
-            input.disabled = true;
-            document.getElementById('send-btn').disabled = true;
-            
-            try {
-                const response = await fetch('/web/tickets/support/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        message: message,
-                        session_id: sessionId,
-                        guest_email: guestEmail,
-                        flow_name: currentFlowName,
-                        flow_step: currentFlowStep,
-                        conversation_history: conversationHistory.slice(-10)
-                    })
-                });
-                
-                const data = await response.json();
-                sessionId = data.session_id;
-                
-                removeTypingIndicator();
-                
-                if (data.error) {
-                    addMessage(`<p class="text-red-600"><i class="fas fa-exclamation-circle mr-2"></i>${data.error}</p>`);
-                    return;
-                }
-                
-                handleResponse(data);
-                
-            } catch (error) {
-                removeTypingIndicator();
-                addMessage(`<p class="text-red-600"><i class="fas fa-exclamation-circle mr-2"></i>Sorry, something went wrong. Please try again or submit a ticket.</p>`);
-            } finally {
-                input.disabled = false;
-                document.getElementById('send-btn').disabled = false;
-                input.focus();
-            }
-        }
-        
-        async function sendFeedback(helpful, articleId, isKB) {
-            try {
-                const response = await fetch('/web/tickets/support/feedback', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        session_id: sessionId,
-                        helpful: helpful,
-                        article_id: articleId !== 'null' ? articleId : null,
-                        problem: currentProblem,
-                        solution: currentSolution
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (helpful) {
-                    failedAttempts = 0;
-                    currentFlowName = null;
-                    currentFlowStep = null;
-                    addMessage(`
-                        <p class="text-gray-700">
-                            <i class="fas fa-check-circle text-green-500 mr-2"></i>
-                            Great! I'm glad that helped. 🎉
-                        </p>
-                        <p class="text-gray-500 text-sm mt-2">Is there anything else I can help you with?</p>
-                    `);
-                } else {
-                    failedAttempts++;
-                    
-                    if (failedAttempts >= 3) {
-                        addMessage(`
-                            <p class="text-gray-700 mb-3">
-                                <i class="fas fa-user-tie text-purple-500 mr-2"></i>
-                                I apologize that I haven't been able to find the right solution. Let me connect you with our support team!
-                            </p>
-                            <button onclick="goToTicketForm()" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
-                                <i class="fas fa-ticket-alt mr-2"></i>Create Support Ticket
-                            </button>
-                        `);
-                    } else {
-                        addMessage(`
-                            <p class="text-gray-700 mb-3">
-                                <i class="fas fa-info-circle text-blue-500 mr-2"></i>
-                                I'm sorry that didn't help. Would you like to try describing the problem differently, or create a support ticket?
-                            </p>
-                            <div class="flex gap-2 flex-wrap">
-                                <button onclick="document.getElementById('chat-input').focus()" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm">
-                                    <i class="fas fa-redo mr-1"></i>Try again
-                                </button>
-                                <button onclick="goToTicketForm()" class="px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">
-                                    <i class="fas fa-ticket-alt mr-1"></i>Create Ticket
-                                </button>
-                            </div>
-                        `);
-                    }
-                }
-                
-            } catch (error) {
-                console.error('Feedback error:', error);
-            }
-        }
-        
-        async function handleChatImage(input) {
-            if (!input.files || !input.files[0]) return;
-            
-            const file = input.files[0];
-            const maxSize = 5 * 1024 * 1024;
-            
-            if (file.size > maxSize) {
-                addMessage('<p class="text-red-600"><i class="fas fa-exclamation-circle mr-2"></i>Image is too large. Please use an image under 5MB.</p>');
-                input.value = '';
-                return;
-            }
-            
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                const imagePreview = `
-                    <div>
-                        <p class="text-white mb-2"><i class="fas fa-image mr-2"></i>Analyzing image...</p>
-                        <img src="${e.target.result}" class="max-w-xs rounded-lg shadow-sm" alt="Uploaded image">
-                    </div>
-                `;
-                addMessage(imagePreview, true);
-                
-                addTypingIndicator();
-                
-                try {
-                    const formData = new FormData();
-                    formData.append('image', file);
-                    formData.append('session_id', sessionId || '');
-                    
-                    const response = await fetch('/web/tickets/support/analyze-image', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    const data = await response.json();
-                    sessionId = data.session_id;
-                    
-                    removeTypingIndicator();
-                    
-                    if (data.error) {
-                        addMessage(`<p class="text-gray-700"><i class="fas fa-info-circle text-yellow-500 mr-2"></i>${data.error}</p>`);
-                    } else if (data.bubbles_response) {
-                        let formattedResponse = data.bubbles_response
-                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                            .replace(/\n\n/g, '</p><p class="text-gray-700 mt-2">')
-                            .replace(/\n/g, '<br>');
-                        addMessage(`<p class="text-gray-700">${formattedResponse}</p>`);
-                        
-                        if (data.kb_articles && data.kb_articles.length > 0) {
-                            data.kb_articles.forEach(article => addSolutionCard(article, true));
-                        } else if (data.web_results && data.web_results.length > 0) {
-                            data.web_results.forEach(result => addSolutionCard(result, false));
-                        }
-                    }
-                } catch (error) {
-                    removeTypingIndicator();
-                    addMessage('<p class="text-gray-700"><i class="fas fa-exclamation-circle text-yellow-500 mr-2"></i>I couldn\'t analyze that image. Please try describing your issue in text.</p>');
-                }
-            };
-            reader.readAsDataURL(file);
-            input.value = '';
-        }
-        
-        async function detectCamera() {
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            
-            if (isMobile || (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices)) {
-                try {
-                    if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-                        const devices = await navigator.mediaDevices.enumerateDevices();
-                        const hasCamera = devices.some(device => device.kind === 'videoinput');
-                        if (hasCamera) {
-                            document.getElementById('chat-camera-btn').classList.remove('hidden');
-                        }
-                    } else if (isMobile) {
-                        document.getElementById('chat-camera-btn').classList.remove('hidden');
-                    }
-                } catch (e) {
-                    if (isMobile) {
-                        document.getElementById('chat-camera-btn').classList.remove('hidden');
-                    }
-                }
-            }
-        }
-        
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            initEmailPrompt();
-            detectCamera();
-            document.getElementById('chat-input').focus();
+    <!-- Chat window -->
+    <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+
+      <!-- Messages area -->
+      <div id="chat-box" class="h-[420px] overflow-y-auto p-4 space-y-4 bg-gray-50/60">
+
+        <!-- Welcome message injected by JS -->
+
+      </div>
+
+      <!-- Input bar -->
+      <div class="p-4 border-t border-gray-100 bg-white">
+        <div class="flex gap-2">
+          <input type="text" id="chat-input"
+                 class="brand-focus flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm bg-gray-50"
+                 placeholder="Describe your issue..."
+                 onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}">
+          <button onclick="document.getElementById('img-upload').click()"
+                  class="px-3 py-3 bg-gray-100 text-gray-500 rounded-xl hover:bg-gray-200 transition" title="Upload screenshot">
+            <i class="fas fa-image"></i>
+          </button>
+          <button id="cam-btn" onclick="document.getElementById('cam-upload').click()"
+                  class="hidden px-3 py-3 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition" title="Take photo">
+            <i class="fas fa-camera"></i>
+          </button>
+          <button onclick="sendMessage()" id="send-btn"
+                  class="brand-btn px-5 py-3 rounded-xl font-semibold text-sm flex items-center gap-2">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+        <input type="file" id="img-upload" accept="image/*" class="hidden" onchange="handleImage(this)">
+        <input type="file" id="cam-upload" accept="image/*" capture="environment" class="hidden" onchange="handleImage(this)">
+      </div>
+    </div>
+
+    <p class="text-center text-xs text-gray-400 mt-4">
+      <i class="fas fa-lock mr-1"></i>Your conversation is private and not linked to any previous chats.
+    </p>
+  </div>
+
+  <script>
+    // ── State ────────────────────────────────────────
+    // Each page load = fresh session. No email persistence, no history recall.
+    const SESSION_ID = crypto.randomUUID();
+    let conversationHistory = [];
+    let currentProblem = '';
+    let currentSolution = '';
+    let currentArticleId = null;
+    let failedAttempts = 0;
+    let flowName = null;
+    let flowStep = null;
+    let stepsTried = [];
+    let ticketPrefill = null;
+
+    // ── DOM helpers ──────────────────────────────────
+    const box = () => document.getElementById('chat-box');
+
+    function scrollBottom() { const b = box(); b.scrollTop = b.scrollHeight; }
+
+    function appendEl(el) { box().appendChild(el); scrollBottom(); }
+
+    function bubbleDiv(inner, isUser = false) {
+      const wrap = document.createElement('div');
+      wrap.className = 'flex items-start gap-3 ' + (isUser ? 'flex-row-reverse' : '');
+
+      const avatar = isUser
+        ? '<div class="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0 shadow-sm"><i class="fas fa-user text-white text-sm"></i></div>'
+        : '<div class="w-9 h-9 rounded-full brand-avatar flex items-center justify-center flex-shrink-0 shadow-sm"><span class="text-base">🫧</span></div>';
+
+      const bubbleCls = isUser
+        ? 'rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm max-w-xs sm:max-w-sm brand-btn text-sm'
+        : 'rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm max-w-xs sm:max-w-sm bg-white border border-gray-100 text-sm text-gray-700';
+
+      wrap.innerHTML = `${avatar}<div class="${bubbleCls}">${inner}</div>`;
+      return wrap;
+    }
+
+    function addMsg(inner, isUser = false) { appendEl(bubbleDiv(inner, isUser)); }
+
+    function addTyping() {
+      const d = document.createElement('div');
+      d.id = 'typing';
+      d.className = 'flex items-start gap-3';
+      d.innerHTML = `
+        <div class="w-9 h-9 rounded-full brand-avatar flex items-center justify-center flex-shrink-0 shadow-sm"><span class="text-base">🫧</span></div>
+        <div class="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm flex items-center gap-1">
+          <span class="text-xs text-gray-400 mr-1">Thinking</span>
+          <span class="w-1.5 h-1.5 rounded-full brand-avatar dot-bounce" style="animation-delay:0ms"></span>
+          <span class="w-1.5 h-1.5 rounded-full brand-avatar dot-bounce" style="animation-delay:150ms"></span>
+          <span class="w-1.5 h-1.5 rounded-full brand-avatar dot-bounce" style="animation-delay:300ms"></span>
+        </div>`;
+      appendEl(d);
+    }
+
+    function removeTyping() { document.getElementById('typing')?.remove(); }
+
+    function addChips(replies) {
+      const d = document.createElement('div');
+      d.className = 'flex flex-wrap gap-2 pl-12';
+      replies.forEach(r => {
+        const btn = document.createElement('button');
+        btn.className = 'brand-chip px-3 py-1.5 rounded-full text-xs font-medium transition-colors';
+        btn.textContent = r.text;
+        btn.onclick = () => handleChip(r.text, r.next || '', r.action || null);
+        d.appendChild(btn);
+      });
+      appendEl(d);
+    }
+
+    function addSolutionCard(sol, isKB = false) {
+      const d = document.createElement('div');
+      d.className = 'flex items-start gap-3';
+      const source = isKB ? '📚 Knowledge Base' : '🌐 Web Search';
+      const content = isKB ? sol.solution : sol.suggestion;
+      const title = sol.title || 'Suggestion';
+      d.innerHTML = `
+        <div class="w-9 h-9 rounded-full brand-avatar flex items-center justify-center flex-shrink-0 shadow-sm"><span class="text-base">🫧</span></div>
+        <div class="solution-card rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm max-w-xs sm:max-w-sm text-sm">
+          <p class="text-[10px] font-semibold brand-text mb-1">${source}</p>
+          <p class="font-semibold text-gray-800 mb-1">${title}</p>
+          <p class="text-gray-600 text-xs leading-relaxed mb-3">${content}</p>
+          <div class="flex gap-2">
+            <button onclick="feedback(true,${sol.id||'null'},'${isKB}')"
+                    class="flex-1 px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs hover:bg-green-100 transition">
+              <i class="fas fa-thumbs-up mr-1"></i>Helped!
+            </button>
+            <button onclick="feedback(false,${sol.id||'null'},'${isKB}')"
+                    class="flex-1 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs hover:bg-red-100 transition">
+              <i class="fas fa-thumbs-down mr-1"></i>Not helpful
+            </button>
+          </div>
+        </div>`;
+      appendEl(d);
+      currentSolution = content;
+      currentArticleId = sol.id || null;
+    }
+
+    // ── Welcome message ──────────────────────────────
+    function showWelcome() {
+      const d = document.createElement('div');
+      d.className = 'flex items-start gap-3';
+      d.innerHTML = `
+        <div class="w-9 h-9 rounded-full brand-avatar flex items-center justify-center flex-shrink-0 shadow-sm"><span class="text-base">🫧</span></div>
+        <div class="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm max-w-xs sm:max-w-sm">
+          <p class="text-sm text-gray-800 mb-1">👋 Hi! I'm <strong>Bubbles</strong>, your support assistant.</p>
+          <p class="text-xs text-gray-500 mb-3">Describe your problem and I'll try to help. If I can't solve it, I'll help you create a ticket!</p>
+          <p class="text-[10px] text-gray-400 mb-2">Quick start — tap an issue below:</p>
+          <div class="flex flex-wrap gap-1.5" id="initial-chips">
+            ${[
+              ['🖨️ Printer problem','My printer is not working'],
+              ['📶 WiFi issues','I cannot connect to WiFi'],
+              ['📧 Email not working','My email is not working'],
+              ['🐢 Slow computer','My computer is running slow'],
+              ['🔑 Password reset','I need to reset my password'],
+              ['❓ Other issue','Something else']
+            ].map(([label, msg]) =>
+              `<button onclick="quickReply('${msg}')" class="brand-chip px-2.5 py-1 rounded-full text-xs font-medium transition-colors">${label}</button>`
+            ).join('')}
+          </div>
+        </div>`;
+      box().appendChild(d);
+    }
+
+    // ── Send / receive ───────────────────────────────
+    async function post(payload) {
+      const r = await fetch('/web/tickets/support/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return r.json();
+    }
+
+    async function sendMessage() {
+      const inp = document.getElementById('chat-input');
+      const msg = inp.value.trim();
+      if (!msg) return;
+
+      currentProblem = msg;
+      conversationHistory.push({ role: 'user', content: msg });
+      addMsg(`<span>${msg}</span>`, true);
+      inp.value = '';
+      addTyping();
+      inp.disabled = true;
+      document.getElementById('send-btn').disabled = true;
+
+      try {
+        const data = await post({
+          message: msg,
+          session_id: SESSION_ID,
+          guest_email: '',   // never send email — each visit is a fresh person
+          flow_name: flowName,
+          flow_step: flowStep,
+          conversation_history: conversationHistory.slice(-10)
         });
-    </script>
+        removeTyping();
+        handleResp(data);
+      } catch(e) {
+        removeTyping();
+        addMsg('<span class="text-red-500">Something went wrong — please try again.</span>');
+      } finally {
+        inp.disabled = false;
+        document.getElementById('send-btn').disabled = false;
+        inp.focus();
+      }
+    }
+
+    function quickReply(msg) {
+      document.getElementById('initial-chips')?.closest('.flex.items-start')?.remove();
+      document.getElementById('chat-input').value = msg;
+      sendMessage();
+    }
+
+    function handleChip(val, next, action) {
+      stepsTried.push(val);
+      if (action === 'create_ticket') { goToTicket(); return; }
+      if (next === 'restart') { flowStep = null; quickReply('Let me try again'); return; }
+      if (next === 'new_issue') { flowName = null; flowStep = null; addMsg('<span>No problem! What else can I help you with?</span>'); return; }
+      if (next === 'goodbye') { flowName = null; flowStep = null; addMsg('<span>Have a great day! 👋</span>'); return; }
+      flowStep = next;
+      addMsg(`<span>${val}</span>`, true);
+      conversationHistory.push({ role: 'user', content: val });
+      addTyping();
+      post({ message: val, session_id: SESSION_ID, guest_email: '', flow_name: flowName, flow_step: flowStep, conversation_history: conversationHistory.slice(-10) })
+        .then(data => { removeTyping(); handleResp(data); })
+        .catch(() => { removeTyping(); addMsg('<span class="text-red-500">Something went wrong.</span>'); });
+    }
+
+    function handleResp(data) {
+      if (data.is_conversational && data.bubbles_response) {
+        const html = data.bubbles_response
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\n\n/g, '</p><p class="mt-2">')
+          .replace(/\n/g, '<br>');
+        addMsg(`<p>${html}</p>`);
+        conversationHistory.push({ role: 'assistant', content: data.bubbles_response });
+        if (data.flow_name) flowName = data.flow_name;
+        if (data.flow_step !== undefined) flowStep = data.flow_step;
+        if (data.quick_replies?.length) addChips(data.quick_replies);
+        if (data.ticket_prefill) ticketPrefill = data.ticket_prefill;
+        return;
+      }
+
+      if (data.found_in_kb && data.kb_articles?.length) {
+        addMsg(`<span>I found <strong>${data.kb_articles.length}</strong> solution(s) that might help:</span>`);
+        data.kb_articles.forEach(a => addSolutionCard(a, true));
+        return;
+      }
+
+      if (data.web_results?.length) {
+        addMsg('<span>I searched the web and found some suggestions:</span>');
+        data.web_results.forEach(r => addSolutionCard(r, false));
+        return;
+      }
+
+      // No solution found
+      failedAttempts++;
+      if (failedAttempts >= 3) {
+        addMsg(`
+          <p class="mb-2"><i class="fas fa-user-tie brand-text mr-1"></i>I wasn't able to solve this — let me connect you with our support team!</p>
+          <button onclick="goToTicket()" class="brand-btn mt-1 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2">
+            <i class="fas fa-ticket-alt"></i>Create Support Ticket
+          </button>`);
+      } else {
+        addMsg(`
+          <p class="mb-2">Hmm, I couldn't find the right answer. Try describing it differently?</p>
+          <div class="flex gap-2">
+            <button onclick="document.getElementById('chat-input').focus()" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs hover:bg-gray-200 transition">
+              <i class="fas fa-redo mr-1"></i>Try again
+            </button>
+            <button onclick="goToTicket()" class="brand-btn px-3 py-1.5 rounded-lg text-xs font-semibold">
+              <i class="fas fa-ticket-alt mr-1"></i>Create Ticket
+            </button>
+          </div>`);
+      }
+    }
+
+    // ── Feedback ─────────────────────────────────────
+    async function feedback(helpful, articleId, isKB) {
+      try {
+        await fetch('/web/tickets/support/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: SESSION_ID, helpful, article_id: articleId !== 'null' ? articleId : null, problem: currentProblem, solution: currentSolution })
+        });
+      } catch(e) {}
+      if (helpful) {
+        failedAttempts = 0; flowName = null; flowStep = null;
+        addMsg('<p><i class="fas fa-check-circle text-green-500 mr-1"></i>Great, glad that helped! 🎉 Anything else I can do?</p>');
+      } else {
+        failedAttempts++;
+        if (failedAttempts >= 3) {
+          addMsg(`<p class="mb-2">I'm sorry I couldn't help. Our support team can sort this out!</p>
+            <button onclick="goToTicket()" class="brand-btn mt-1 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2"><i class="fas fa-ticket-alt"></i>Create Support Ticket</button>`);
+        } else {
+          addMsg('<p>Sorry about that! Try describing it a different way or create a ticket and a human will help you.</p>');
+        }
+      }
+    }
+
+    // ── Ticket redirect ───────────────────────────────
+    function goToTicket() {
+      if (ticketPrefill) {
+        sessionStorage.setItem('bubbles_prefill', JSON.stringify(ticketPrefill));
+      } else {
+        sessionStorage.setItem('bubbles_prefill', JSON.stringify({
+          subject: currentProblem.substring(0, 100),
+          description: 'Conversation with Bubbles:\n' + conversationHistory.map(m => m.role + ': ' + m.content).join('\n')
+        }));
+      }
+      window.location.href = '/web/tickets/guest';
+    }
+
+    // ── Image upload ──────────────────────────────────
+    async function handleImage(input) {
+      if (!input.files?.[0]) return;
+      const file = input.files[0];
+      if (file.size > 5 * 1024 * 1024) { addMsg('<span class="text-red-500">Image too large (max 5 MB).</span>'); return; }
+      const reader = new FileReader();
+      reader.onload = async e => {
+        addMsg(`<div><p class="mb-1 text-xs"><i class="fas fa-image mr-1"></i>Analyzing screenshot...</p><img src="${e.target.result}" class="max-w-[180px] rounded-lg" alt="screenshot"></div>`, true);
+        addTyping();
+        try {
+          const fd = new FormData();
+          fd.append('image', file);
+          fd.append('session_id', SESSION_ID);
+          const r = await fetch('/web/tickets/support/analyze-image', { method: 'POST', body: fd });
+          const data = await r.json();
+          removeTyping();
+          if (data.bubbles_response) {
+            const html = data.bubbles_response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+            addMsg(`<p>${html}</p>`);
+          } else if (data.error) {
+            addMsg(`<span>${data.error}</span>`);
+          }
+        } catch(e) { removeTyping(); addMsg('<span>Could not analyze the image — please describe the issue in text.</span>'); }
+      };
+      reader.readAsDataURL(file);
+      input.value = '';
+    }
+
+    // ── Camera detection ──────────────────────────────
+    async function detectCamera() {
+      if (/Android|iPhone|iPad/i.test(navigator.userAgent)) { document.getElementById('cam-btn').classList.remove('hidden'); return; }
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        if (devices.some(d => d.kind === 'videoinput')) document.getElementById('cam-btn').classList.remove('hidden');
+      } catch(e) {}
+    }
+
+    // ── Init ──────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      showWelcome();
+      detectCamera();
+      document.getElementById('chat-input').focus();
+    });
+  </script>
 </body>
 </html>
