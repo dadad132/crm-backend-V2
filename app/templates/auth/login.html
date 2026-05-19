@@ -20,166 +20,330 @@
     position: relative;
   }
 
-  /* Animated Character */
+  /* ── Character animations ─────────────────────────── */
+  @keyframes char-float {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-14px); }
+  }
+  @keyframes shadow-pulse {
+    0%, 100% { transform: translateX(-50%) scaleX(1);   opacity: .14; }
+    50%       { transform: translateX(-50%) scaleX(.78); opacity: .07; }
+  }
+  @keyframes eye-blink {
+    0%, 90%, 100% { transform: scaleY(1); }
+    95%            { transform: scaleY(0.06); }
+  }
+  @keyframes wave-arm {
+    0%   { transform: rotate(10deg); }
+    20%  { transform: rotate(-55deg) translateY(-10px); }
+    50%  { transform: rotate(-65deg) translateY(-10px); }
+    80%  { transform: rotate(-48deg) translateY(-6px); }
+    100% { transform: rotate(10deg); }
+  }
+  @keyframes char-enter {
+    from { opacity: 0; transform: translateY(44px) scale(.85); }
+    to   { opacity: 1; transform: translateY(0)    scale(1);   }
+  }
+  @keyframes bubble-in {
+    from { opacity: 0; transform: translateX(-50%) scale(.75) translateY(6px); }
+    to   { opacity: 1; transform: translateX(-50%) scale(1)   translateY(0);   }
+  }
+
+  /* ── Outer container ────────────────────────────────── */
   .character-container {
     display: flex;
     flex-direction: column;
     align-items: center;
     position: relative;
+    animation: char-enter .65s cubic-bezier(.34,1.56,.64,1) both;
   }
 
-  .character {
-    width: 200px;
-    height: 250px;
+  /* ── Root character element ─────────────────────────── */
+  .char {
+    width: 210px;
+    height: 290px;
     position: relative;
-    transition: all 0.3s ease;
+    will-change: transform;
+    animation: char-float 3.4s ease-in-out infinite .65s;
   }
 
-  .character-body {
-    width: 80px;
-    height: 120px;
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    border-radius: 40px 40px 20px 20px;
+  /* ── Ground shadow ──────────────────────────────────── */
+  .char-shadow {
+    width: 80px; height: 14px;
+    background: radial-gradient(ellipse, rgba(0,0,0,.22) 0%, transparent 72%);
     position: absolute;
-    bottom: 0;
-    left: 50%;
+    bottom: 2px; left: 50%;
     transform: translateX(-50%);
+    animation: shadow-pulse 3.4s ease-in-out infinite .65s;
   }
 
-  .character-head {
-    width: 100px;
-    height: 100px;
-    background: #fbbf24;
+  /* ── Head ───────────────────────────────────────────── */
+  .char-head {
+    width: 122px; height: 122px;
+    background: linear-gradient(150deg, #fde68a 0%, #fbbf24 55%, #f59e0b 100%);
     border-radius: 50%;
     position: absolute;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 4px solid #f59e0b;
-    transition: transform 0.3s ease;
+    top: 8px; left: 44px;
+    border: 3px solid #f0960a;
+    box-shadow: inset -10px -10px 22px rgba(224,110,0,.18), 0 5px 14px rgba(0,0,0,.12);
+    z-index: 10;
+    transition: transform .4s cubic-bezier(.34,1.56,.64,1);
   }
 
-  .character-eyes {
+  /* ── Hair ───────────────────────────────────────────── */
+  .char-hair {
     position: absolute;
-    top: 35px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 20px;
-    transition: all 0.3s ease;
+    top: -13px; left: -3px;
+    width: 128px; height: 58px;
+    background: #1e1b4b;
+    border-radius: 64px 64px 0 0;
+    overflow: hidden;
+    z-index: 12;
   }
-
-  .eye {
-    width: 16px;
-    height: 16px;
-    background: #1f2937;
-    border-radius: 50%;
-    position: relative;
-    transition: all 0.3s ease;
-  }
-
-  .eye::after {
+  .char-hair::before {
     content: '';
-    width: 6px;
-    height: 6px;
+    position: absolute;
+    top: 6px; left: 38px;
+    width: 52px; height: 28px;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.06) 50%, transparent 100%);
+    border-radius: 50%;
+  }
+  .char-hair::after {
+    content: '';
+    position: absolute;
+    top: -8px; left: 50%;
+    transform: translateX(-50%);
+    width: 20px; height: 26px;
+    background: #1e1b4b;
+    border-radius: 50% 50% 0 0;
+  }
+
+  /* ── Eyebrows ────────────────────────────────────────── */
+  .char-brow {
+    width: 28px; height: 5px;
+    background: #1e1b4b;
+    border-radius: 3px;
+    position: absolute;
+    top: 30px;
+    transition: transform .35s ease, top .35s ease;
+  }
+  .char-brow-l { left: 17px;  transform: rotate(-4deg); }
+  .char-brow-r { right: 17px; transform: rotate(4deg); }
+
+  /* ── Eyes ───────────────────────────────────────────── */
+  .char-eye {
+    width: 30px; height: 32px;
     background: white;
     border-radius: 50%;
     position: absolute;
-    top: 3px;
-    left: 3px;
+    top: 42px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,.13);
+    overflow: hidden;
+    transition: opacity .3s ease, transform .3s ease;
+    will-change: transform;
+  }
+  .char-eye-l { left: 18px; }
+  .char-eye-r { right: 18px; }
+  .char-eye-l { animation: eye-blink 4.2s ease-in-out infinite 1s; }
+  .char-eye-r { animation: eye-blink 4.2s ease-in-out infinite 1.15s; }
+
+  /* ── Pupils ─────────────────────────────────────────── */
+  .char-pupil {
+    width: 17px; height: 17px;
+    background: #1e1b4b;
+    border-radius: 50%;
+    position: relative; flex-shrink: 0;
+    transition: transform .25s ease;
+  }
+  .char-pupil::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: white; border-radius: 50%;
+    position: absolute; top: 2px; right: 2px;
+  }
+  .char-pupil::after {
+    content: '';
+    width: 3px; height: 3px;
+    background: rgba(255,255,255,.65); border-radius: 50%;
+    position: absolute; bottom: 3px; left: 2px;
   }
 
-  .character.looking-away .eye {
-    transform: translateX(-8px);
+  /* ── Nose ───────────────────────────────────────────── */
+  .char-nose {
+    width: 12px; height: 8px;
+    background: #e5940a;
+    border-radius: 50%;
+    position: absolute;
+    top: 76px; left: 55px;
+    opacity: .6;
   }
 
-  .character-mouth {
-    width: 30px;
-    height: 15px;
-    border: 3px solid #1f2937;
+  /* ── Mouth ──────────────────────────────────────────── */
+  .char-mouth {
+    width: 36px; height: 18px;
+    border: 3px solid #1e1b4b;
     border-top: none;
-    border-radius: 0 0 30px 30px;
+    border-radius: 0 0 36px 36px;
     position: absolute;
-    top: 60px;
-    left: 50%;
-    transform: translateX(-50%);
-    transition: all 0.3s ease;
+    top: 86px; left: 43px;
+    transition: all .35s cubic-bezier(.34,1.56,.64,1);
   }
 
-  .character.smiling .character-mouth {
-    height: 20px;
-    border-radius: 0 0 40px 40px;
-  }
-
-  .character-arms {
+  /* ── Cheek blush ─────────────────────────────────────── */
+  .char-blush {
+    width: 22px; height: 11px;
+    background: #fb7185;
+    border-radius: 50%;
     position: absolute;
-    top: 140px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 120px;
-    display: flex;
-    justify-content: space-between;
+    top: 68px;
+    opacity: 0;
+    transition: opacity .4s ease;
+  }
+  .char-blush-l { left: 4px; }
+  .char-blush-r { right: 4px; }
+
+  /* ── Neck ───────────────────────────────────────────── */
+  .char-neck {
+    width: 24px; height: 22px;
+    background: #fbbf24;
+    border-left: 2px solid #f0960a;
+    border-right: 2px solid #f0960a;
+    position: absolute;
+    top: 118px; left: 93px;
+    z-index: 9;
   }
 
-  .arm {
-    width: 15px;
-    height: 60px;
-    background: #3b82f6;
-    border-radius: 8px;
+  /* ── Body / shirt ────────────────────────────────────── */
+  .char-body {
+    width: 92px; height: 100px;
+    background: linear-gradient(150deg, #6366f1 0%, #4f46e5 55%, #4338ca 100%);
+    border-radius: 30px 30px 22px 22px;
+    position: absolute;
+    top: 138px; left: 59px;
+    box-shadow: inset -6px -8px 18px rgba(0,0,0,.16), 0 5px 14px rgba(79,70,229,.28);
+    z-index: 8;
+    overflow: hidden;
+  }
+  /* V-neck collar */
+  .char-body::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 18px solid transparent;
+    border-right: 18px solid transparent;
+    border-top: 26px solid rgba(255,255,255,.22);
+  }
+  /* Shirt button line */
+  .char-body::after {
+    content: '';
+    position: absolute;
+    top: 32px; left: 50%;
+    transform: translateX(-50%);
+    width: 3px; height: 42px;
+    background: rgba(255,255,255,.14);
+    border-radius: 2px;
+  }
+
+  /* ── Arms ───────────────────────────────────────────── */
+  .char-arm {
+    width: 22px; height: 80px;
+    background: linear-gradient(160deg, #5b5ef4 0%, #4338ca 100%);
+    border-radius: 11px;
+    position: absolute;
+    top: 142px;
     transform-origin: top center;
+    transition: transform .55s cubic-bezier(.34,1.56,.64,1);
+    will-change: transform;
+    z-index: 7;
+    box-shadow: inset -3px -3px 8px rgba(0,0,0,.15);
+  }
+  .char-arm-l { left: 26px;  transform: rotate(-10deg); }
+  .char-arm-r { right: 26px; transform: rotate(10deg); }
+
+  /* ── Hands ──────────────────────────────────────────── */
+  .char-hand {
+    width: 28px; height: 28px;
+    background: linear-gradient(150deg, #fde68a 0%, #fbbf24 100%);
+    border-radius: 50%;
+    position: absolute;
+    bottom: -15px; left: 50%;
+    transform: translateX(-50%);
+    border: 2px solid #f0960a;
+    box-shadow: 0 2px 6px rgba(0,0,0,.15);
   }
 
-  .arm.left {
-    transform: rotate(-20deg);
-  }
-
-  .arm.right {
-    transform: rotate(20deg);
-  }
-
-  .character.waving .arm.right {
-    animation: wave 0.5s ease-in-out infinite;
-  }
-
-  @keyframes wave {
-    0%, 100% { transform: rotate(20deg); }
-    50% { transform: rotate(-30deg); }
-  }
-
+  /* ── Speech bubble ───────────────────────────────────── */
   .speech-bubble {
     position: absolute;
-    top: -20px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: -56px; left: 50%;
+    transform: translateX(-50%) scale(.8);
     background: white;
-    padding: 0.75rem 1.25rem;
-    border-radius: 20px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: .55rem 1.1rem;
+    border-radius: 22px;
+    box-shadow: 0 4px 18px rgba(0,0,0,.14);
     opacity: 0;
-    transition: all 0.3s ease;
+    transition: opacity .25s ease, transform .25s cubic-bezier(.34,1.56,.64,1), top .25s ease;
     white-space: nowrap;
     font-weight: 600;
+    font-size: .88rem;
     color: #1f2937;
     pointer-events: none;
+    z-index: 30;
   }
-
   .speech-bubble::after {
     content: '';
     position: absolute;
-    bottom: -10px;
-    left: 50%;
+    bottom: -8px; left: 50%;
     transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 10px solid transparent;
-    border-right: 10px solid transparent;
-    border-top: 10px solid white;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid white;
   }
-
   .speech-bubble.show {
     opacity: 1;
-    top: -30px;
+    transform: translateX(-50%) scale(1);
+    top: -64px;
   }
+
+  /* ════════════════════════════════════════════════
+     STATE MODIFIERS  (applied to .char)
+     ════════════════════════════════════════════════ */
+
+  /* Smile */
+  .char-smile .char-mouth {
+    width: 46px; height: 26px;
+    border-radius: 0 0 46px 46px;
+    top: 84px; left: 38px;
+    border-width: 3.5px;
+  }
+  .char-smile .char-blush-l,
+  .char-smile .char-blush-r { opacity: .6; }
+  .char-smile .char-brow-l  { transform: rotate(-8deg); top: 26px; }
+  .char-smile .char-brow-r  { transform: rotate(8deg);  top: 26px; }
+
+  /* Wave — right arm only */
+  .char-wave .char-arm-r {
+    animation: wave-arm .72s ease-in-out 3 forwards;
+  }
+
+  /* Cover eyes — both arms swing up in front of face */
+  .char-cover .char-arm-l { transform: rotate(148deg); z-index: 20; }
+  .char-cover .char-arm-r { transform: rotate(-148deg); z-index: 20; }
+  .char-cover .char-eye-l,
+  .char-cover .char-eye-r  { opacity: 0; animation: none; }
+  .char-cover .char-brow-l { transform: rotate(12deg); top: 34px; }
+  .char-cover .char-brow-r { transform: rotate(-12deg); top: 34px; }
+
+  /* Peek — arms up but eyes half-open */
+  .char-peek .char-arm-l { transform: rotate(148deg); z-index: 20; }
+  .char-peek .char-arm-r { transform: rotate(-148deg); z-index: 20; }
+  .char-peek .char-eye-l,
+  .char-peek .char-eye-r  { transform: scaleY(.35); opacity: .7; animation: none; }
+  .char-peek .char-brow-l { transform: rotate(-12deg); top: 20px; }
+  .char-peek .char-brow-r { transform: rotate(12deg);  top: 20px; }
 
   .auth-header {
     text-align: center;
@@ -485,11 +649,6 @@
       margin: -3rem 0 -3.5rem 0;
     }
 
-    .character {
-      width: 200px;
-      height: 250px;
-    }
-
     .auth-card {
       padding: 1.25rem;
       border-radius: 16px 16px 0 0;
@@ -621,20 +780,24 @@
 <div class="auth-container">
   <!-- Animated Character -->
   <div class="character-container">
-    <div class="character" id="authCharacter">
-      <div class="speech-bubble" id="speechBubble">Hello!</div>
-      <div class="character-head">
-        <div class="character-eyes">
-          <div class="eye"></div>
-          <div class="eye"></div>
-        </div>
-        <div class="character-mouth"></div>
+    <div class="char" id="char">
+      <div class="speech-bubble" id="speechBubble"></div>
+      <div class="char-head">
+        <div class="char-hair"></div>
+        <div class="char-brow char-brow-l"></div>
+        <div class="char-brow char-brow-r"></div>
+        <div class="char-eye char-eye-l"><div class="char-pupil"></div></div>
+        <div class="char-eye char-eye-r"><div class="char-pupil"></div></div>
+        <div class="char-nose"></div>
+        <div class="char-mouth"></div>
+        <div class="char-blush char-blush-l"></div>
+        <div class="char-blush char-blush-r"></div>
       </div>
-      <div class="character-body"></div>
-      <div class="character-arms">
-        <div class="arm left"></div>
-        <div class="arm right"></div>
-      </div>
+      <div class="char-neck"></div>
+      <div class="char-body"></div>
+      <div class="char-arm char-arm-l" id="armL"><div class="char-hand"></div></div>
+      <div class="char-arm char-arm-r" id="armR"><div class="char-hand"></div></div>
+      <div class="char-shadow"></div>
     </div>
   </div>
 
@@ -702,66 +865,81 @@
 </div>
 
 <script>
-  const character = document.getElementById('authCharacter');
-  const speechBubble = document.getElementById('speechBubble');
-  const usernameInput = document.getElementById('username');
-  const passwordInput = document.getElementById('password');
+  const char = document.getElementById('char');
+  const bubble = document.getElementById('speechBubble');
+  const username = document.getElementById('username');
+  const password = document.getElementById('password');
+  let bubbleTimer, peekTimer, greetedName = '';
 
-  let typingTimeout;
+  function showBubble(msg, duration) {
+    clearTimeout(bubbleTimer);
+    bubble.textContent = msg;
+    bubble.classList.add('show');
+    if (duration) {
+      bubbleTimer = setTimeout(() => bubble.classList.remove('show'), duration);
+    }
+  }
 
-  // When user types in username field
-  usernameInput.addEventListener('input', (e) => {
-    const username = e.target.value.trim();
-    
-    if (username.length > 0) {
-      // Make character smile and wave
-      character.classList.add('smiling', 'waving');
-      character.classList.remove('looking-away');
-      
-      // Show greeting with username
-      speechBubble.textContent = `Hello, ${username}!`;
-      speechBubble.classList.add('show');
-      
-      // Hide speech bubble after 2 seconds
-      clearTimeout(typingTimeout);
-      typingTimeout = setTimeout(() => {
-        speechBubble.classList.remove('show');
-      }, 2000);
+  function hideBubble() {
+    clearTimeout(bubbleTimer);
+    bubble.classList.remove('show');
+  }
+
+  function setState(states) {
+    char.classList.remove('char-smile', 'char-wave', 'char-cover', 'char-peek');
+    states.forEach(s => char.classList.add(s));
+  }
+
+  // Entry animation
+  setTimeout(() => {
+    setState(['char-smile', 'char-wave']);
+    showBubble('👋 Welcome back!', 2600);
+    setTimeout(() => char.classList.remove('char-wave'), 2200);
+  }, 700);
+
+  username.addEventListener('focus', () => {
+    if (password.value.length === 0) {
+      setState(username.value.trim() ? ['char-smile'] : []);
+    }
+  });
+
+  username.addEventListener('input', () => {
+    const val = username.value.trim();
+    if (val) {
+      if (val !== greetedName) {
+        greetedName = val;
+        setState(['char-smile', 'char-wave']);
+        showBubble(`Hi, ${val}! 😊`, 2200);
+        setTimeout(() => char.classList.remove('char-wave'), 1800);
+      } else {
+        setState(['char-smile']);
+      }
     } else {
-      // Reset character
-      character.classList.remove('smiling', 'waving', 'looking-away');
-      speechBubble.classList.remove('show');
+      greetedName = '';
+      setState([]);
+      hideBubble();
     }
   });
 
-  // When user focuses on password field
-  passwordInput.addEventListener('focus', () => {
-    // Make character look away
-    character.classList.add('looking-away');
-    character.classList.remove('smiling', 'waving');
-    speechBubble.classList.remove('show');
+  password.addEventListener('focus', () => {
+    setState(['char-cover']);
+    showBubble("🙈 I won't look!");
   });
 
-  // When user leaves password field
-  passwordInput.addEventListener('blur', () => {
-    const username = usernameInput.value.trim();
-    
-    // Look back at user
-    character.classList.remove('looking-away');
-    
-    if (username.length > 0) {
-      character.classList.add('smiling');
-    }
+  password.addEventListener('input', () => {
+    clearTimeout(peekTimer);
+    setState(['char-peek']);
+    showBubble('👀 Almost there...', 99999);
+    peekTimer = setTimeout(() => {
+      setState(['char-cover']);
+      showBubble("🙈 I won't look!");
+    }, 1200);
   });
 
-  // When user focuses back on username
-  usernameInput.addEventListener('focus', () => {
-    character.classList.remove('looking-away');
-    const username = usernameInput.value.trim();
-    
-    if (username.length > 0) {
-      character.classList.add('smiling');
-    }
+  password.addEventListener('blur', () => {
+    clearTimeout(peekTimer);
+    setState(username.value.trim() ? ['char-smile'] : []);
+    hideBubble();
   });
 </script>
 {% endblock %}
