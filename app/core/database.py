@@ -280,6 +280,24 @@ async def lifespan(app):  # FastAPI lifespan
     except Exception as e:
         logger.warning(f"⚠️  Could not migrate processedmail schema: {e}")
     
+    # Add customer_office_number to task table
+    try:
+        import sqlite3
+        from pathlib import Path
+        db_path = Path("data.db")
+        if db_path.exists():
+            conn = sqlite3.connect(str(db_path), timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('PRAGMA table_info("task")')
+            t_cols = {row[1] for row in cursor.fetchall()}
+            if t_cols and "customer_office_number" not in t_cols:
+                cursor.execute("ALTER TABLE task ADD COLUMN customer_office_number VARCHAR")
+                conn.commit()
+                logger.info("✅ Added task.customer_office_number")
+            conn.close()
+    except Exception as e:
+        logger.warning(f"⚠️  Could not migrate task schema: {e}")
+
     # Add job card client fields to ticket table
     try:
         import sqlite3

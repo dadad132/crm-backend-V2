@@ -7989,14 +7989,16 @@ async def web_task_update(
 async def web_task_complete_with_details(
     request: Request,
     task_id: int,
+    # Client details
+    customer_name: Optional[str] = Form(None),
+    customer_surname: Optional[str] = Form(None),
+    customer_phone: Optional[str] = Form(None),
+    customer_office_number: Optional[str] = Form(None),
+    # Billable items
     billable_traveling: Optional[str] = Form(None),
     billable_labour_onsite: Optional[str] = Form(None),
     billable_remote_labour: Optional[str] = Form(None),
     billable_equipment_used: Optional[str] = Form(None),
-    non_billable_traveling: Optional[str] = Form(None),
-    non_billable_labour_onsite: Optional[str] = Form(None),
-    non_billable_remote_labour: Optional[str] = Form(None),
-    non_billable_equipment_used: Optional[str] = Form(None),
     completion_notes: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_session)
 ):
@@ -8028,16 +8030,20 @@ async def web_task_complete_with_details(
     task.is_archived = True
     task.archived_at = datetime.utcnow()
     
-    # Save billing details
-    task.billable_traveling = billable_traveling.strip() if billable_traveling and billable_traveling.strip() else None
-    task.billable_labour_onsite = billable_labour_onsite.strip() if billable_labour_onsite and billable_labour_onsite.strip() else None
-    task.billable_remote_labour = billable_remote_labour.strip() if billable_remote_labour and billable_remote_labour.strip() else None
-    task.billable_equipment_used = billable_equipment_used.strip() if billable_equipment_used and billable_equipment_used.strip() else None
-    task.non_billable_traveling = non_billable_traveling.strip() if non_billable_traveling and non_billable_traveling.strip() else None
-    task.non_billable_labour_onsite = non_billable_labour_onsite.strip() if non_billable_labour_onsite and non_billable_labour_onsite.strip() else None
-    task.non_billable_remote_labour = non_billable_remote_labour.strip() if non_billable_remote_labour and non_billable_remote_labour.strip() else None
-    task.non_billable_equipment_used = non_billable_equipment_used.strip() if non_billable_equipment_used and non_billable_equipment_used.strip() else None
-    task.completion_notes = completion_notes.strip() if completion_notes and completion_notes.strip() else None
+    def _c(v):
+        return v.strip() if v and v.strip() else None
+
+    # Save client details
+    task.customer_name = _c(customer_name)
+    task.customer_surname = _c(customer_surname)
+    task.customer_phone = _c(customer_phone)
+    task.customer_office_number = _c(customer_office_number)
+    # Save billable details
+    task.billable_traveling = _c(billable_traveling)
+    task.billable_labour_onsite = _c(billable_labour_onsite)
+    task.billable_remote_labour = _c(billable_remote_labour)
+    task.billable_equipment_used = _c(billable_equipment_used)
+    task.completion_notes = _c(completion_notes)
     
     # Add history
     history_entry = TaskHistory(
@@ -8050,59 +8056,63 @@ async def web_task_complete_with_details(
     db.add(history_entry)
     
     await db.commit()
-    
-    # Build billing details string for email
-    billing_details = []
-    
-    # Billable items
-    billable_items = []
-    if task.billable_traveling:
-        billable_items.append(f"  - Traveling: {task.billable_traveling}")
-    if task.billable_labour_onsite:
-        billable_items.append(f"  - Labour Onsite: {task.billable_labour_onsite}")
-    if task.billable_remote_labour:
-        billable_items.append(f"  - Remote Labour: {task.billable_remote_labour}")
-    if task.billable_equipment_used:
-        billable_items.append(f"  - Equipment Used: {task.billable_equipment_used}")
-    
-    if billable_items:
-        billing_details.append("BILLABLE:")
-        billing_details.extend(billable_items)
-    
-    # Non-billable items
-    non_billable_items = []
-    if task.non_billable_traveling:
-        non_billable_items.append(f"  - Traveling: {task.non_billable_traveling}")
-    if task.non_billable_labour_onsite:
-        non_billable_items.append(f"  - Labour Onsite: {task.non_billable_labour_onsite}")
-    if task.non_billable_remote_labour:
-        non_billable_items.append(f"  - Remote Labour: {task.non_billable_remote_labour}")
-    if task.non_billable_equipment_used:
-        non_billable_items.append(f"  - Equipment Used: {task.non_billable_equipment_used}")
-    
-    if non_billable_items:
-        if billing_details:
-            billing_details.append("")  # Empty line separator
-        billing_details.append("NON-BILLABLE:")
-        billing_details.extend(non_billable_items)
-    
-    # Completion notes
-    if task.completion_notes:
-        if billing_details:
-            billing_details.append("")  # Empty line separator
-        billing_details.append(f"COMPLETION NOTES:\n{task.completion_notes}")
-    
-    # Build additional details for email
+
+    # Build additional details string for email
     project = (await db.execute(select(Project).where(Project.id == task.project_id))).scalar_one_or_none()
     additional_details_parts = []
     if project:
         additional_details_parts.append(f"Project: {project.name}")
-    if billing_details:
-        additional_details_parts.append("\n" + "\n".join(billing_details))
-    
+    client_parts = [task.customer_name, task.customer_surname, task.customer_phone, task.customer_office_number]
+    if any(client_parts):
+        additional_details_parts.append("CLIENT: " + ", ".join(p for p in client_parts if p))
+    for label, val in [
+        ("Traveling", task.billable_traveling),
+        ("Labour Onsite", task.billable_labour_onsite),
+        ("Remote Labour", task.billable_remote_labour),
+        ("Sundries", task.billable_equipment_used),
+    ]:
+        if val:
+            additional_details_parts.append(f"  {label}: {val}")
+    if task.completion_notes:
+        additional_details_parts.append(f"Notes: {task.completion_notes}")
     additional_details = "\n".join(additional_details_parts)
-    
-    # Send completion notification email
+
+    # Generate PDF job card
+    task_pdf_bytes = None
+    try:
+        from app.core.job_card_pdf import generate_job_card_pdf
+        from app.models.workspace import Workspace as WS
+        ws = (await db.execute(select(WS).where(WS.id == user.workspace_id))).scalar_one_or_none()
+        logo_path = None
+        company_name = "Support Team"
+        if ws:
+            company_name = ws.name or company_name
+            if ws.logo_url:
+                import os as _os
+                logo_path = _os.path.join(_os.getcwd(), "app", ws.logo_url.lstrip("/"))
+        task_pdf_bytes = generate_job_card_pdf(
+            ticket_number=str(task_id),
+            subject=task.title,
+            priority=task.priority.value.title() if task.priority else "Normal",
+            created_at=task.created_at,
+            closed_at=task.archived_at or datetime.utcnow(),
+            technician_name=user.full_name or user.username,
+            client_name=task.customer_name,
+            client_surname=task.customer_surname,
+            client_phone=task.customer_phone,
+            client_office_number=task.customer_office_number,
+            billable_traveling=task.billable_traveling,
+            billable_labour_onsite=task.billable_labour_onsite,
+            billable_remote_labour=task.billable_remote_labour,
+            billable_sundries=task.billable_equipment_used,
+            additional_notes=task.completion_notes,
+            company_name=company_name,
+            logo_path=logo_path,
+        )
+    except Exception as e:
+        logger.error(f"Failed to generate job card PDF for task {task_id}: {e}")
+
+    # Send completion notification email with PDF attachment
     try:
         await send_completion_notification_email(
             db=db,
@@ -8115,7 +8125,9 @@ async def web_task_complete_with_details(
             completed_by_name=user.full_name or user.username,
             created_at=task.created_at,
             completed_at=task.archived_at,
-            additional_details=additional_details
+            additional_details=additional_details,
+            pdf_attachment=task_pdf_bytes,
+            pdf_filename=f"JobCard_Task_{task_id}.pdf",
         )
     except Exception as e:
         logger.error(f"Failed to send task completion notification: {e}")
