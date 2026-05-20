@@ -51,12 +51,17 @@ class TicketBase(SQLModel):
     archived_at: Optional[datetime] = None
     
     # Closing/Billing details (optional, filled when closing ticket)
+    # Job card client details
+    job_client_name: Optional[str] = None
+    job_client_surname: Optional[str] = None
+    job_client_phone: Optional[str] = None
+    job_client_office_number: Optional[str] = None
     # Billable items
     billable_traveling: Optional[str] = None
     billable_labour_onsite: Optional[str] = None
     billable_remote_labour: Optional[str] = None
     billable_equipment_used: Optional[str] = None
-    # Non-billable items
+    # Non-billable items (kept for backwards compatibility)
     non_billable_traveling: Optional[str] = None
     non_billable_labour_onsite: Optional[str] = None
     non_billable_remote_labour: Optional[str] = None

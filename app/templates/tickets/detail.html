@@ -491,87 +491,86 @@
                 </dl>
             </div>
 
-            <!-- Billing/Work Details (shown if any exist) -->
-            {% if ticket.billable_traveling or ticket.billable_labour_onsite or ticket.billable_remote_labour or ticket.billable_equipment_used or ticket.non_billable_traveling or ticket.non_billable_labour_onsite or ticket.non_billable_remote_labour or ticket.non_billable_equipment_used or ticket.closing_notes %}
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <h3 class="text-sm font-semibold text-gray-700 uppercase mb-3">Closing Details</h3>
-                
-                {% if ticket.billable_traveling or ticket.billable_labour_onsite or ticket.billable_remote_labour or ticket.billable_equipment_used %}
-                <div class="mb-4">
-                    <h4 class="text-sm font-medium text-green-700 mb-2 flex items-center">
-                        <i class="fas fa-dollar-sign mr-1"></i>Billable
-                    </h4>
-                    <dl class="space-y-1 text-sm pl-4 border-l-2 border-green-300">
-                        {% if ticket.billable_traveling %}
-                        <div class="flex justify-between">
-                            <dt class="text-gray-500">Traveling</dt>
-                            <dd class="text-gray-900">{{ ticket.billable_traveling }}</dd>
-                        </div>
-                        {% endif %}
-                        {% if ticket.billable_labour_onsite %}
-                        <div class="flex justify-between">
-                            <dt class="text-gray-500">Labour Onsite</dt>
-                            <dd class="text-gray-900">{{ ticket.billable_labour_onsite }}</dd>
-                        </div>
-                        {% endif %}
-                        {% if ticket.billable_remote_labour %}
-                        <div class="flex justify-between">
-                            <dt class="text-gray-500">Remote Labour</dt>
-                            <dd class="text-gray-900">{{ ticket.billable_remote_labour }}</dd>
-                        </div>
-                        {% endif %}
-                        {% if ticket.billable_equipment_used %}
-                        <div class="flex justify-between">
-                            <dt class="text-gray-500">Equipment</dt>
-                            <dd class="text-gray-900">{{ ticket.billable_equipment_used }}</dd>
-                        </div>
-                        {% endif %}
-                    </dl>
+            <!-- Job Card Details (shown after ticket is closed) -->
+            {% if ticket.job_client_name or ticket.job_client_phone or ticket.billable_traveling or ticket.billable_labour_onsite or ticket.billable_remote_labour or ticket.billable_equipment_used or ticket.closing_notes %}
+            <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                <!-- Card header -->
+                <div class="flex items-center gap-2.5 px-5 py-3.5 bg-slate-800 text-white">
+                    <i class="fas fa-file-invoice text-blue-300 text-sm"></i>
+                    <span class="text-sm font-semibold tracking-wide">Job Card Summary</span>
                 </div>
-                {% endif %}
-                
-                {% if ticket.non_billable_traveling or ticket.non_billable_labour_onsite or ticket.non_billable_remote_labour or ticket.non_billable_equipment_used %}
-                <div class="mb-4">
-                    <h4 class="text-sm font-medium text-gray-600 mb-2 flex items-center">
-                        <i class="fas fa-ban mr-1"></i>Non-Billable
-                    </h4>
-                    <dl class="space-y-1 text-sm pl-4 border-l-2 border-gray-300">
-                        {% if ticket.non_billable_traveling %}
-                        <div class="flex justify-between">
-                            <dt class="text-gray-500">Traveling</dt>
-                            <dd class="text-gray-900">{{ ticket.non_billable_traveling }}</dd>
-                        </div>
-                        {% endif %}
-                        {% if ticket.non_billable_labour_onsite %}
-                        <div class="flex justify-between">
-                            <dt class="text-gray-500">Labour Onsite</dt>
-                            <dd class="text-gray-900">{{ ticket.non_billable_labour_onsite }}</dd>
-                        </div>
-                        {% endif %}
-                        {% if ticket.non_billable_remote_labour %}
-                        <div class="flex justify-between">
-                            <dt class="text-gray-500">Remote Labour</dt>
-                            <dd class="text-gray-900">{{ ticket.non_billable_remote_labour }}</dd>
-                        </div>
-                        {% endif %}
-                        {% if ticket.non_billable_equipment_used %}
-                        <div class="flex justify-between">
-                            <dt class="text-gray-500">Equipment</dt>
-                            <dd class="text-gray-900">{{ ticket.non_billable_equipment_used }}</dd>
-                        </div>
-                        {% endif %}
-                    </dl>
+
+                <div class="divide-y divide-slate-100">
+
+                    <!-- Client details -->
+                    {% if ticket.job_client_name or ticket.job_client_surname or ticket.job_client_phone or ticket.job_client_office_number %}
+                    <div class="px-5 py-4">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Client</p>
+                        <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                            {% if ticket.job_client_name or ticket.job_client_surname %}
+                            <div>
+                                <dt class="text-xs text-slate-400">Name</dt>
+                                <dd class="font-medium text-slate-800">{{ ticket.job_client_name or '' }} {{ ticket.job_client_surname or '' }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if ticket.job_client_phone %}
+                            <div>
+                                <dt class="text-xs text-slate-400">Phone</dt>
+                                <dd class="font-medium text-slate-800">{{ ticket.job_client_phone }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if ticket.job_client_office_number %}
+                            <div class="col-span-2">
+                                <dt class="text-xs text-slate-400">Office</dt>
+                                <dd class="font-medium text-slate-800">{{ ticket.job_client_office_number }}</dd>
+                            </div>
+                            {% endif %}
+                        </dl>
+                    </div>
+                    {% endif %}
+
+                    <!-- Billable work -->
+                    {% if ticket.billable_traveling or ticket.billable_labour_onsite or ticket.billable_remote_labour or ticket.billable_equipment_used %}
+                    <div class="px-5 py-4">
+                        <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-3">Billable Work</p>
+                        <dl class="space-y-1.5 text-sm">
+                            {% if ticket.billable_traveling %}
+                            <div class="flex justify-between">
+                                <dt class="text-slate-400 flex items-center gap-1.5"><i class="fas fa-car text-emerald-400 w-3"></i>Traveling</dt>
+                                <dd class="font-medium text-slate-800">{{ ticket.billable_traveling }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if ticket.billable_labour_onsite %}
+                            <div class="flex justify-between">
+                                <dt class="text-slate-400 flex items-center gap-1.5"><i class="fas fa-tools text-emerald-400 w-3"></i>Labour Onsite</dt>
+                                <dd class="font-medium text-slate-800">{{ ticket.billable_labour_onsite }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if ticket.billable_remote_labour %}
+                            <div class="flex justify-between">
+                                <dt class="text-slate-400 flex items-center gap-1.5"><i class="fas fa-laptop text-emerald-400 w-3"></i>Remote Labour</dt>
+                                <dd class="font-medium text-slate-800">{{ ticket.billable_remote_labour }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if ticket.billable_equipment_used %}
+                            <div class="flex justify-between">
+                                <dt class="text-slate-400 flex items-center gap-1.5"><i class="fas fa-box text-emerald-400 w-3"></i>Sundries</dt>
+                                <dd class="font-medium text-slate-800">{{ ticket.billable_equipment_used }}</dd>
+                            </div>
+                            {% endif %}
+                        </dl>
+                    </div>
+                    {% endif %}
+
+                    <!-- Notes -->
+                    {% if ticket.closing_notes %}
+                    <div class="px-5 py-4">
+                        <p class="text-[10px] font-bold text-violet-500 uppercase tracking-widest mb-2">Notes</p>
+                        <p class="text-sm text-slate-700 leading-relaxed">{{ ticket.closing_notes }}</p>
+                    </div>
+                    {% endif %}
+
                 </div>
-                {% endif %}
-                
-                {% if ticket.closing_notes %}
-                <div>
-                    <h4 class="text-sm font-medium text-gray-700 mb-2 flex items-center">
-                        <i class="fas fa-sticky-note mr-1"></i>Closing Notes
-                    </h4>
-                    <p class="text-sm text-gray-700 bg-gray-50 p-3 rounded">{{ ticket.closing_notes }}</p>
-                </div>
-                {% endif %}
             </div>
             {% endif %}
 
@@ -682,114 +681,152 @@ function closeCloseTicketModal() {
 }
 </script>
 
-<!-- Close Ticket Modal with Billing Details -->
-<div id="closeTicketModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div class="p-6 border-b border-gray-200">
-            <div class="flex justify-between items-center">
-                <h3 class="text-xl font-semibold text-gray-900">
-                    <i class="fas fa-lock text-gray-600 mr-2"></i>Close Ticket #{{ ticket.ticket_number }}
-                </h3>
-                <button onclick="closeCloseTicketModal()" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-            <p class="text-sm text-gray-600 mt-2">Optional: Enter billing and work details for this ticket.</p>
+<!-- Close Ticket / Job Card Modal -->
+<div id="closeTicketModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" style="backdrop-filter:blur(2px)">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto flex flex-col">
+
+    <!-- Modal header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
+          <i class="fas fa-file-invoice text-white text-sm"></i>
         </div>
-        
-        <form method="post" action="/web/tickets/{{ ticket.id }}/close-with-details" class="p-6">
-            <!-- Billable Section -->
-            <div class="mb-6">
-                <h4 class="text-lg font-semibold text-green-700 mb-3 flex items-center">
-                    <i class="fas fa-dollar-sign mr-2"></i>Billable
-                </h4>
-                <div class="bg-green-50 border border-green-200 rounded-lg p-4 space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Traveling</label>
-                            <input type="text" name="billable_traveling" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                   placeholder="R8.50 per km">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Labour Onsite</label>
-                            <input type="text" name="billable_labour_onsite" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                   placeholder="R850 per hour (call out)">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Remote Labour</label>
-                            <input type="text" name="billable_remote_labour" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                   placeholder="R400 per hour">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Sundries</label>
-                            <input type="text" name="billable_equipment_used" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                   placeholder="n/a">
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Non-Billable Section -->
-            <div class="mb-6">
-                <h4 class="text-lg font-semibold text-gray-600 mb-3 flex items-center">
-                    <i class="fas fa-ban mr-2"></i>Non-Billable
-                </h4>
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Traveling</label>
-                            <input type="text" name="non_billable_traveling" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500"
-                                   placeholder="R8.50 per km">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Labour Onsite</label>
-                            <input type="text" name="non_billable_labour_onsite" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500"
-                                   placeholder="R850 per hour (call out)">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Remote Labour</label>
-                            <input type="text" name="non_billable_remote_labour" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500"
-                                   placeholder="R400 per hour">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Sundries</label>
-                            <input type="text" name="non_billable_equipment_used" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500"
-                                   placeholder="n/a">
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Closing Notes -->
-            <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    <i class="fas fa-sticky-note mr-1"></i>Closing Notes (Optional)
-                </label>
-                <textarea name="closing_notes" rows="3" 
-                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Any additional notes about the resolution..."></textarea>
-            </div>
-            
-            <!-- Action Buttons -->
-            <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                <button type="button" onclick="closeCloseTicketModal()"
-                        class="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
-                    Cancel
-                </button>
-                <button type="submit"
-                        class="px-6 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800">
-                    <i class="fas fa-lock mr-2"></i>Close Ticket
-                </button>
-            </div>
-        </form>
+        <div>
+          <h3 class="text-base font-semibold text-gray-900 leading-tight">Generate Job Card</h3>
+          <p class="text-xs text-gray-400 leading-tight">#{{ ticket.ticket_number }}</p>
+        </div>
+      </div>
+      <button onclick="closeCloseTicketModal()" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition">
+        <i class="fas fa-times"></i>
+      </button>
     </div>
+
+    <form method="post" action="/web/tickets/{{ ticket.id }}/close-with-details" class="flex flex-col flex-1">
+      <div class="px-6 py-5 space-y-6">
+
+        <!-- Step badge -->
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
+            <i class="fas fa-user text-blue-500" style="font-size:10px"></i> Step 1 — Client Details
+          </span>
+        </div>
+
+        <!-- Client details -->
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">First Name</label>
+              <input type="text" name="job_client_name"
+                     value="{{ ticket.guest_name or '' }}"
+                     class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                     placeholder="e.g. John">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Last Name</label>
+              <input type="text" name="job_client_surname"
+                     value="{{ ticket.guest_surname or '' }}"
+                     class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                     placeholder="e.g. Smith">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Phone Number</label>
+              <input type="text" name="job_client_phone"
+                     value="{{ ticket.guest_phone or '' }}"
+                     class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                     placeholder="e.g. 011 123 4567">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Office Number</label>
+              <input type="text" name="job_client_office_number"
+                     value="{{ ticket.guest_office_number or '' }}"
+                     class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                     placeholder="e.g. Office 4B / 012 345 6789">
+            </div>
+          </div>
+        </div>
+
+        <!-- Divider with step badge -->
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1">
+            <i class="fas fa-receipt text-emerald-500" style="font-size:10px"></i> Step 2 — Billable Work
+          </span>
+        </div>
+
+        <!-- Billable section -->
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                <i class="fas fa-car text-emerald-500 mr-1"></i>Traveling
+              </label>
+              <input type="text" name="billable_traveling"
+                     class="w-full px-3 py-2.5 text-sm border border-emerald-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                     placeholder="e.g. R8.50 per km / 45km">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                <i class="fas fa-tools text-emerald-500 mr-1"></i>Labour Onsite
+              </label>
+              <input type="text" name="billable_labour_onsite"
+                     class="w-full px-3 py-2.5 text-sm border border-emerald-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                     placeholder="e.g. R850/hr — 2hrs">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                <i class="fas fa-laptop text-emerald-500 mr-1"></i>Remote Labour
+              </label>
+              <input type="text" name="billable_remote_labour"
+                     class="w-full px-3 py-2.5 text-sm border border-emerald-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                     placeholder="e.g. R400/hr — 1hr">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                <i class="fas fa-box text-emerald-500 mr-1"></i>Sundries
+              </label>
+              <input type="text" name="billable_equipment_used"
+                     class="w-full px-3 py-2.5 text-sm border border-emerald-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                     placeholder="e.g. Cable ties, patch cable">
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Notes -->
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 bg-violet-50 border border-violet-200 rounded-full px-3 py-1">
+            <i class="fas fa-sticky-note text-violet-500" style="font-size:10px"></i> Step 3 — Additional Notes
+          </span>
+        </div>
+
+        <div>
+          <textarea name="closing_notes" rows="3"
+                    class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition resize-none"
+                    placeholder="Any additional notes about the work done or resolution..."></textarea>
+        </div>
+
+        <!-- PDF notice -->
+        <div class="flex items-start gap-2.5 bg-blue-50 border border-blue-200 rounded-xl p-3">
+          <i class="fas fa-file-pdf text-blue-500 mt-0.5 flex-shrink-0"></i>
+          <p class="text-xs text-blue-700 leading-relaxed">
+            A <strong>PDF job card</strong> will be automatically generated and emailed to your billing address when this ticket is closed.
+          </p>
+        </div>
+
+      </div><!-- /scroll body -->
+
+      <!-- Sticky footer -->
+      <div class="px-6 py-4 border-t border-gray-100 bg-white rounded-b-2xl flex items-center justify-between gap-3">
+        <button type="button" onclick="closeCloseTicketModal()"
+                class="px-4 py-2.5 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition font-medium">
+          Cancel
+        </button>
+        <button type="submit"
+                class="px-6 py-2.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold flex items-center gap-2 shadow-sm">
+          <i class="fas fa-file-invoice"></i>
+          Close &amp; Generate Job Card
+        </button>
+      </div>
+    </form>
+
+  </div>
 </div>
 {% endblock %}

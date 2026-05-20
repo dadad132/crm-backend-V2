@@ -4701,13 +4701,16 @@ async def send_completion_notification_email(
     completed_by_name: str,
     created_at: datetime,
     completed_at: datetime,
-    additional_details: str = ""
+    additional_details: str = "",
+    pdf_attachment: bytes = None,
+    pdf_filename: str = "JobCard.pdf",
 ):
     """Send completion notification email for tasks or tickets"""
     from app.models.email_settings import EmailSettings
     import smtplib
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
+    from email.mime.application import MIMEApplication
     
     try:
         # Get email settings
@@ -4804,7 +4807,13 @@ This is an automated notification from your CRM system."""
         msg['To'] = settings.completion_notify_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
-        
+
+        # Attach PDF job card if provided
+        if pdf_attachment:
+            pdf_part = MIMEApplication(pdf_attachment, _subtype="pdf")
+            pdf_part.add_header("Content-Disposition", "attachment", filename=pdf_filename)
+            msg.attach(pdf_part)
+
         if settings.smtp_use_tls:
             server = smtplib.SMTP(settings.smtp_host, settings.smtp_port)
             server.starttls()
@@ -14857,14 +14866,16 @@ async def web_tickets_update_status(
 async def web_tickets_close_with_details(
     request: Request,
     ticket_id: int,
+    # Job card client details
+    job_client_name: Optional[str] = Form(None),
+    job_client_surname: Optional[str] = Form(None),
+    job_client_phone: Optional[str] = Form(None),
+    job_client_office_number: Optional[str] = Form(None),
+    # Billable items
     billable_traveling: Optional[str] = Form(None),
     billable_labour_onsite: Optional[str] = Form(None),
     billable_remote_labour: Optional[str] = Form(None),
     billable_equipment_used: Optional[str] = Form(None),
-    non_billable_traveling: Optional[str] = Form(None),
-    non_billable_labour_onsite: Optional[str] = Form(None),
-    non_billable_remote_labour: Optional[str] = Form(None),
-    non_billable_equipment_used: Optional[str] = Form(None),
     closing_notes: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_session)
 ):
@@ -14904,16 +14915,20 @@ async def web_tickets_close_with_details(
     except Exception:
         pass
     
-    # Save billing details (strip whitespace, store None if empty)
-    ticket.billable_traveling = billable_traveling.strip() if billable_traveling and billable_traveling.strip() else None
-    ticket.billable_labour_onsite = billable_labour_onsite.strip() if billable_labour_onsite and billable_labour_onsite.strip() else None
-    ticket.billable_remote_labour = billable_remote_labour.strip() if billable_remote_labour and billable_remote_labour.strip() else None
-    ticket.billable_equipment_used = billable_equipment_used.strip() if billable_equipment_used and billable_equipment_used.strip() else None
-    ticket.non_billable_traveling = non_billable_traveling.strip() if non_billable_traveling and non_billable_traveling.strip() else None
-    ticket.non_billable_labour_onsite = non_billable_labour_onsite.strip() if non_billable_labour_onsite and non_billable_labour_onsite.strip() else None
-    ticket.non_billable_remote_labour = non_billable_remote_labour.strip() if non_billable_remote_labour and non_billable_remote_labour.strip() else None
-    ticket.non_billable_equipment_used = non_billable_equipment_used.strip() if non_billable_equipment_used and non_billable_equipment_used.strip() else None
-    ticket.closing_notes = closing_notes.strip() if closing_notes and closing_notes.strip() else None
+    def _clean(v):
+        return v.strip() if v and v.strip() else None
+
+    # Save job card client details
+    ticket.job_client_name = _clean(job_client_name)
+    ticket.job_client_surname = _clean(job_client_surname)
+    ticket.job_client_phone = _clean(job_client_phone)
+    ticket.job_client_office_number = _clean(job_client_office_number)
+    # Save billable details
+    ticket.billable_traveling = _clean(billable_traveling)
+    ticket.billable_labour_onsite = _clean(billable_labour_onsite)
+    ticket.billable_remote_labour = _clean(billable_remote_labour)
+    ticket.billable_equipment_used = _clean(billable_equipment_used)
+    ticket.closing_notes = _clean(closing_notes)
     
     # Add history
     history = TicketHistory(
@@ -14939,58 +14954,64 @@ async def web_tickets_close_with_details(
             db.add(notification)
     
     await db.commit()
-    
-    # Build billing details string for email
-    billing_details = []
-    
-    # Billable items
-    billable_items = []
-    if ticket.billable_traveling:
-        billable_items.append(f"  - Traveling: {ticket.billable_traveling}")
-    if ticket.billable_labour_onsite:
-        billable_items.append(f"  - Labour Onsite: {ticket.billable_labour_onsite}")
-    if ticket.billable_remote_labour:
-        billable_items.append(f"  - Remote Labour: {ticket.billable_remote_labour}")
-    if ticket.billable_equipment_used:
-        billable_items.append(f"  - Equipment Used: {ticket.billable_equipment_used}")
-    
-    if billable_items:
-        billing_details.append("BILLABLE:")
-        billing_details.extend(billable_items)
-    
-    # Non-billable items
-    non_billable_items = []
-    if ticket.non_billable_traveling:
-        non_billable_items.append(f"  - Traveling: {ticket.non_billable_traveling}")
-    if ticket.non_billable_labour_onsite:
-        non_billable_items.append(f"  - Labour Onsite: {ticket.non_billable_labour_onsite}")
-    if ticket.non_billable_remote_labour:
-        non_billable_items.append(f"  - Remote Labour: {ticket.non_billable_remote_labour}")
-    if ticket.non_billable_equipment_used:
-        non_billable_items.append(f"  - Equipment Used: {ticket.non_billable_equipment_used}")
-    
-    if non_billable_items:
-        if billing_details:
-            billing_details.append("")  # Empty line separator
-        billing_details.append("NON-BILLABLE:")
-        billing_details.extend(non_billable_items)
-    
-    # Closing notes
-    if ticket.closing_notes:
-        if billing_details:
-            billing_details.append("")  # Empty line separator
-        billing_details.append(f"CLOSING NOTES:\n{ticket.closing_notes}")
-    
-    # Build additional details for email
+
+    # Build additional details string for email body
     additional_details_parts = []
     if ticket.category:
         additional_details_parts.append(f"Category: {ticket.category}")
-    if billing_details:
-        additional_details_parts.append("\n" + "\n".join(billing_details))
-    
+    client_parts = [ticket.job_client_name, ticket.job_client_surname, ticket.job_client_phone, ticket.job_client_office_number]
+    if any(client_parts):
+        additional_details_parts.append(
+            "CLIENT: " + ", ".join(p for p in client_parts if p)
+        )
+    for label, val in [
+        ("Traveling", ticket.billable_traveling),
+        ("Labour Onsite", ticket.billable_labour_onsite),
+        ("Remote Labour", ticket.billable_remote_labour),
+        ("Sundries", ticket.billable_equipment_used),
+    ]:
+        if val:
+            additional_details_parts.append(f"  {label}: {val}")
+    if ticket.closing_notes:
+        additional_details_parts.append(f"Notes: {ticket.closing_notes}")
     additional_details = "\n".join(additional_details_parts)
-    
-    # Send completion notification email
+
+    # Generate PDF job card
+    pdf_bytes = None
+    try:
+        from app.core.job_card_pdf import generate_job_card_pdf
+        from app.models.workspace import Workspace as WS
+        ws = (await db.execute(select(WS).where(WS.id == ticket.workspace_id))).scalar_one_or_none()
+        logo_path = None
+        company_name = "Support Team"
+        if ws:
+            company_name = ws.name or company_name
+            if ws.logo_url:
+                import os
+                logo_path = os.path.join(os.getcwd(), "app", ws.logo_url.lstrip("/"))
+        pdf_bytes = generate_job_card_pdf(
+            ticket_number=ticket.ticket_number,
+            subject=ticket.subject,
+            priority=ticket.priority.title() if ticket.priority else "Normal",
+            created_at=ticket.created_at,
+            closed_at=ticket.closed_at,
+            technician_name=user.full_name or user.username,
+            client_name=ticket.job_client_name,
+            client_surname=ticket.job_client_surname,
+            client_phone=ticket.job_client_phone,
+            client_office_number=ticket.job_client_office_number,
+            billable_traveling=ticket.billable_traveling,
+            billable_labour_onsite=ticket.billable_labour_onsite,
+            billable_remote_labour=ticket.billable_remote_labour,
+            billable_sundries=ticket.billable_equipment_used,
+            additional_notes=ticket.closing_notes,
+            company_name=company_name,
+            logo_path=logo_path,
+        )
+    except Exception as e:
+        logger.error(f"Failed to generate job card PDF for ticket {ticket.ticket_number}: {e}")
+
+    # Send completion notification email with PDF attachment
     try:
         await send_completion_notification_email(
             db=db,
@@ -15003,11 +15024,13 @@ async def web_tickets_close_with_details(
             completed_by_name=user.full_name or user.username,
             created_at=ticket.created_at,
             completed_at=ticket.closed_at,
-            additional_details=additional_details
+            additional_details=additional_details,
+            pdf_attachment=pdf_bytes,
+            pdf_filename=f"JobCard_{ticket.ticket_number}.pdf",
         )
     except Exception as e:
         logger.error(f"Failed to send ticket completion notification: {e}")
-    
+
     request.session['success_message'] = f'Ticket #{ticket.ticket_number} has been closed.'
 
     # Fire webhook for external integrations

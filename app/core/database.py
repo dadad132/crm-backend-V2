@@ -280,6 +280,31 @@ async def lifespan(app):  # FastAPI lifespan
     except Exception as e:
         logger.warning(f"⚠️  Could not migrate processedmail schema: {e}")
     
+    # Add job card client fields to ticket table
+    try:
+        import sqlite3
+        from pathlib import Path
+        db_path = Path("data.db")
+        if db_path.exists():
+            conn = sqlite3.connect(str(db_path), timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('PRAGMA table_info("ticket")')
+            tkt_cols = {row[1] for row in cursor.fetchall()}
+            new_cols = {
+                "job_client_name": "VARCHAR",
+                "job_client_surname": "VARCHAR",
+                "job_client_phone": "VARCHAR",
+                "job_client_office_number": "VARCHAR",
+            }
+            for col, col_type in new_cols.items():
+                if tkt_cols and col not in tkt_cols:
+                    cursor.execute(f"ALTER TABLE ticket ADD COLUMN {col} {col_type}")
+                    logger.info(f"✅ Added ticket.{col}")
+            conn.commit()
+            conn.close()
+    except Exception as e:
+        logger.warning(f"⚠️  Could not migrate ticket job_card columns: {e}")
+
     # ─── Background schedulers ──────────────────────────────────────
     # Start these AFTER all schema fixes are done, so they don't read
     # tables that are being modified.
