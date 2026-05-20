@@ -702,113 +702,90 @@ function closeCloseTicketModal() {
     </div>
 
     <form method="post" action="/web/tickets/{{ ticket.id }}/close-with-details" class="flex flex-col flex-1">
-      <div class="px-6 py-5 space-y-6">
+      <div class="px-6 py-5 space-y-5">
 
-        <!-- Step badge -->
-        <div class="flex items-center gap-2">
-          <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
-            <i class="fas fa-user text-blue-500" style="font-size:10px"></i> Step 1 — Client Details
-          </span>
-        </div>
-
-        <!-- Client details -->
-        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- Client Details -->
+        <div>
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Client Details</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">First Name</label>
+              <label class="block text-xs font-medium text-slate-600 mb-1">First Name</label>
               <input type="text" name="job_client_name"
                      value="{{ ticket.guest_name or '' }}"
-                     class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                     placeholder="e.g. John">
+                     class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                     placeholder="First name">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Last Name</label>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Last Name</label>
               <input type="text" name="job_client_surname"
                      value="{{ ticket.guest_surname or '' }}"
-                     class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                     placeholder="e.g. Smith">
+                     class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                     placeholder="Last name">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Phone Number</label>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Phone Number</label>
               <input type="text" name="job_client_phone"
                      value="{{ ticket.guest_phone or '' }}"
-                     class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                     class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                      placeholder="e.g. 011 123 4567">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Office Number</label>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Office Number</label>
               <input type="text" name="job_client_office_number"
                      value="{{ ticket.guest_office_number or '' }}"
-                     class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                     placeholder="e.g. Office 4B / 012 345 6789">
+                     class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                     placeholder="e.g. 012 345 6789">
             </div>
           </div>
         </div>
 
-        <!-- Divider with step badge -->
-        <div class="flex items-center gap-2">
-          <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1">
-            <i class="fas fa-receipt text-emerald-500" style="font-size:10px"></i> Step 2 — Billable Work
-          </span>
-        </div>
+        <hr class="border-slate-100">
 
-        <!-- Billable section -->
-        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- Billable Work -->
+        <div>
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Billable Work</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                <i class="fas fa-car text-emerald-500 mr-1"></i>Traveling
-              </label>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Traveling</label>
               <input type="text" name="billable_traveling"
-                     class="w-full px-3 py-2.5 text-sm border border-emerald-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                     placeholder="e.g. R8.50 per km / 45km">
+                     class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                     placeholder="e.g. R8.50/km — 45km">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                <i class="fas fa-tools text-emerald-500 mr-1"></i>Labour Onsite
-              </label>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Labour Onsite</label>
               <input type="text" name="billable_labour_onsite"
-                     class="w-full px-3 py-2.5 text-sm border border-emerald-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                     class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
                      placeholder="e.g. R850/hr — 2hrs">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                <i class="fas fa-laptop text-emerald-500 mr-1"></i>Remote Labour
-              </label>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Remote Labour</label>
               <input type="text" name="billable_remote_labour"
-                     class="w-full px-3 py-2.5 text-sm border border-emerald-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                     class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
                      placeholder="e.g. R400/hr — 1hr">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                <i class="fas fa-box text-emerald-500 mr-1"></i>Sundries
-              </label>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Sundries</label>
               <input type="text" name="billable_equipment_used"
-                     class="w-full px-3 py-2.5 text-sm border border-emerald-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
+                     class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
                      placeholder="e.g. Cable ties, patch cable">
             </div>
           </div>
         </div>
 
-        <!-- Step 3: Notes -->
-        <div class="flex items-center gap-2">
-          <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 bg-violet-50 border border-violet-200 rounded-full px-3 py-1">
-            <i class="fas fa-sticky-note text-violet-500" style="font-size:10px"></i> Step 3 — Additional Notes
-          </span>
-        </div>
+        <hr class="border-slate-100">
 
+        <!-- Additional Notes -->
         <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Additional Notes</label>
           <textarea name="closing_notes" rows="3"
-                    class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition resize-none"
+                    class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none"
                     placeholder="Any additional notes about the work done or resolution..."></textarea>
         </div>
 
         <!-- PDF notice -->
-        <div class="flex items-start gap-2.5 bg-blue-50 border border-blue-200 rounded-xl p-3">
-          <i class="fas fa-file-pdf text-blue-500 mt-0.5 flex-shrink-0"></i>
-          <p class="text-xs text-blue-700 leading-relaxed">
-            A <strong>PDF job card</strong> will be automatically generated and emailed to your billing address when this ticket is closed.
-          </p>
+        <div class="flex items-center gap-2.5 bg-blue-50 border border-blue-100 rounded-lg p-3">
+          <i class="fas fa-file-pdf text-blue-400 flex-shrink-0"></i>
+          <p class="text-xs text-blue-600">A <strong>PDF job card</strong> will be generated and emailed to your billing address.</p>
         </div>
 
       </div><!-- /scroll body -->
