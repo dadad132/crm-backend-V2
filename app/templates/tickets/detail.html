@@ -694,24 +694,24 @@ function closeCloseTicketModal() {
     border:none; border-bottom:2px solid #e2e8f0; background:transparent;
     outline:none; transition:border-color .15s;
   }
-  .jc-input:focus { border-bottom-color:#6366f1; }
+  .jc-input:focus { border-bottom-color: var(--ac); }
   .jc-input::placeholder { color:#94a3b8; }
 </style>
 <div id="closeTicketModal" class="hidden fixed inset-0 z-50 flex justify-end">
   <div class="jc-panel w-full max-w-md h-full flex flex-col bg-white shadow-2xl border-l border-slate-200 overflow-y-auto">
 
-    <!-- Gradient header -->
-    <div class="relative px-6 pt-6 pb-5 flex-shrink-0" style="background:linear-gradient(135deg,#312e81 0%,#4f46e5 60%,#7c3aed 100%)">
+    <!-- Gradient header — uses theme variables -->
+    <div class="relative px-6 pt-6 pb-5 flex-shrink-0" style="background:linear-gradient(135deg, var(--sb-a) 0%, var(--ac-d) 100%)">
       <div class="flex items-start justify-between">
         <div>
           <div class="flex items-center gap-2 mb-1">
-            <i class="fas fa-file-invoice-dollar text-indigo-200 text-xs"></i>
-            <span class="text-indigo-200 text-xs font-semibold uppercase tracking-widest">Job Card</span>
+            <i class="fas fa-file-invoice-dollar text-xs" style="color:rgba(255,255,255,0.6)"></i>
+            <span class="text-xs font-semibold uppercase tracking-widest" style="color:rgba(255,255,255,0.6)">Job Card</span>
           </div>
           <h2 class="text-white text-lg font-bold leading-tight">Close Ticket</h2>
-          <p class="text-indigo-300 text-xs mt-0.5">#{{ ticket.ticket_number }} &nbsp;·&nbsp; {{ ticket.subject | truncate(40) }}</p>
+          <p class="text-xs mt-0.5" style="color:rgba(255,255,255,0.55)">#{{ ticket.ticket_number }} &nbsp;·&nbsp; {{ ticket.subject | truncate(40) }}</p>
         </div>
-        <button onclick="closeCloseTicketModal()" class="text-indigo-300 hover:text-white transition mt-0.5">
+        <button onclick="closeCloseTicketModal()" class="hover:text-white transition mt-0.5" style="color:rgba(255,255,255,0.6)">
           <i class="fas fa-times text-lg"></i>
         </button>
       </div>
@@ -723,8 +723,8 @@ function closeCloseTicketModal() {
         <!-- Client Details -->
         <div>
           <div class="flex items-center gap-2 mb-4">
-            <span class="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-              <i class="fas fa-user text-indigo-500" style="font-size:9px"></i>
+            <span class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--ac-12)">
+              <i class="fas fa-user" style="font-size:9px;color:var(--ac)"></i>
             </span>
             <span class="text-xs font-bold text-slate-500 uppercase tracking-widest">Client Details</span>
           </div>
@@ -753,8 +753,8 @@ function closeCloseTicketModal() {
         <!-- Billable Work -->
         <div>
           <div class="flex items-center gap-2 mb-4">
-            <span class="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-              <i class="fas fa-receipt text-emerald-500" style="font-size:9px"></i>
+            <span class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--ac-12)">
+              <i class="fas fa-receipt" style="font-size:9px;color:var(--ac)"></i>
             </span>
             <span class="text-xs font-bold text-slate-500 uppercase tracking-widest">Billable Work</span>
           </div>
@@ -787,18 +787,19 @@ function closeCloseTicketModal() {
         <!-- Notes -->
         <div>
           <div class="flex items-center gap-2 mb-3">
-            <span class="w-5 h-5 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
-              <i class="fas fa-pen text-violet-500" style="font-size:9px"></i>
+            <span class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--ac-12)">
+              <i class="fas fa-pen" style="font-size:9px;color:var(--ac)"></i>
             </span>
             <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Additional Notes</label>
           </div>
           <textarea name="closing_notes" rows="3"
-                    class="w-full text-sm bg-slate-50 rounded-xl px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none transition"
+                    class="w-full text-sm bg-slate-50 rounded-xl px-4 py-3 border border-slate-200 focus:outline-none resize-none transition"
+                    style="--tw-ring-color:var(--ac-40)"
                     placeholder="Any additional notes about the work done..."></textarea>
         </div>
 
         <div class="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-100">
-          <i class="fas fa-file-pdf text-indigo-300"></i>
+          <i class="fas fa-file-pdf" style="color:var(--ac-40)"></i>
           PDF job card will be emailed to your billing address on close.
         </div>
 
@@ -812,7 +813,7 @@ function closeCloseTicketModal() {
         </button>
         <button type="submit"
                 class="flex-1 py-2.5 text-sm text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition"
-                style="background:linear-gradient(135deg,#4f46e5,#7c3aed)">
+                style="background:linear-gradient(135deg, var(--ac-d), var(--ac))">
           <i class="fas fa-file-invoice-dollar"></i>
           Close &amp; Send Job Card
         </button>
