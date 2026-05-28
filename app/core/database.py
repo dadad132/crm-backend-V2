@@ -280,7 +280,9 @@ async def lifespan(app):  # FastAPI lifespan
     except Exception as e:
         logger.warning(f"⚠️  Could not migrate processedmail schema: {e}")
     
-    # Add customer_office_number to task table
+    # ── Comprehensive task table column migration ──────────────────────
+    # Covers all columns that may be absent on databases created before
+    # the corresponding migration scripts were run manually.
     try:
         import sqlite3
         from pathlib import Path
@@ -290,15 +292,48 @@ async def lifespan(app):  # FastAPI lifespan
             cursor = conn.cursor()
             cursor.execute('PRAGMA table_info("task")')
             t_cols = {row[1] for row in cursor.fetchall()}
-            if t_cols and "customer_office_number" not in t_cols:
-                cursor.execute("ALTER TABLE task ADD COLUMN customer_office_number VARCHAR")
+            task_ensure = {
+                # customer info (added for job card / task-completion form)
+                "customer_name":              "VARCHAR",
+                "customer_surname":           "VARCHAR",
+                "customer_email":             "VARCHAR",
+                "customer_phone":             "VARCHAR",
+                "customer_office_number":     "VARCHAR",
+                # billable line items
+                "billable_traveling":         "VARCHAR",
+                "billable_labour_onsite":     "VARCHAR",
+                "billable_remote_labour":     "VARCHAR",
+                "billable_equipment_used":    "VARCHAR",
+                # non-billable line items (kept for backwards compatibility)
+                "non_billable_traveling":     "VARCHAR",
+                "non_billable_labour_onsite": "VARCHAR",
+                "non_billable_remote_labour": "VARCHAR",
+                "non_billable_equipment_used":"VARCHAR",
+                # completion notes
+                "completion_notes":           "VARCHAR",
+                # scheduling / display
+                "tags":                       "VARCHAR",
+                "working_days":               "VARCHAR DEFAULT '0,1,2,3,4'",
+                "estimated_hours":            "FLOAT",
+                "time_spent_hours":           "FLOAT",
+                "is_archived":                "BOOLEAN NOT NULL DEFAULT 0",
+                "archived_at":                "TIMESTAMP",
+                "parent_task_id":             "INTEGER",
+            }
+            added = []
+            for col, col_type in task_ensure.items():
+                if t_cols and col not in t_cols:
+                    cursor.execute(f"ALTER TABLE task ADD COLUMN {col} {col_type}")
+                    added.append(col)
+            if added:
                 conn.commit()
-                logger.info("✅ Added task.customer_office_number")
+                logger.info(f"✅ Added task columns: {', '.join(added)}")
             conn.close()
     except Exception as e:
         logger.warning(f"⚠️  Could not migrate task schema: {e}")
 
-    # Add job card client fields to ticket table
+    # ── Comprehensive ticket table column migration ─────────────────────
+    # Covers all columns that may be absent on older production databases.
     try:
         import sqlite3
         from pathlib import Path
@@ -308,20 +343,46 @@ async def lifespan(app):  # FastAPI lifespan
             cursor = conn.cursor()
             cursor.execute('PRAGMA table_info("ticket")')
             tkt_cols = {row[1] for row in cursor.fetchall()}
-            new_cols = {
-                "job_client_name": "VARCHAR",
-                "job_client_surname": "VARCHAR",
-                "job_client_phone": "VARCHAR",
-                "job_client_office_number": "VARCHAR",
+            ticket_ensure = {
+                # job card client details (latest addition)
+                "job_client_name":            "VARCHAR",
+                "job_client_surname":         "VARCHAR",
+                "job_client_phone":           "VARCHAR",
+                "job_client_office_number":   "VARCHAR",
+                # billable line items
+                "billable_traveling":         "VARCHAR",
+                "billable_labour_onsite":     "VARCHAR",
+                "billable_remote_labour":     "VARCHAR",
+                "billable_equipment_used":    "VARCHAR",
+                # non-billable line items (kept for backwards compatibility)
+                "non_billable_traveling":     "VARCHAR",
+                "non_billable_labour_onsite": "VARCHAR",
+                "non_billable_remote_labour": "VARCHAR",
+                "non_billable_equipment_used":"VARCHAR",
+                # closing details
+                "closing_notes":              "VARCHAR",
+                # guest fields
+                "guest_office_number":        "VARCHAR",
+                # scheduling / archive
+                "working_days":               "VARCHAR DEFAULT '0,1,2,3,4'",
+                "scheduled_date":             "TIMESTAMP",
+                "is_archived":                "BOOLEAN NOT NULL DEFAULT 0",
+                "archived_at":                "TIMESTAMP",
+                "closed_by_id":               "INTEGER",
+                "related_project_id":         "INTEGER",
+                "related_task_id":            "INTEGER",
             }
-            for col, col_type in new_cols.items():
+            added = []
+            for col, col_type in ticket_ensure.items():
                 if tkt_cols and col not in tkt_cols:
                     cursor.execute(f"ALTER TABLE ticket ADD COLUMN {col} {col_type}")
-                    logger.info(f"✅ Added ticket.{col}")
-            conn.commit()
+                    added.append(col)
+            if added:
+                conn.commit()
+                logger.info(f"✅ Added ticket columns: {', '.join(added)}")
             conn.close()
     except Exception as e:
-        logger.warning(f"⚠️  Could not migrate ticket job_card columns: {e}")
+        logger.warning(f"⚠️  Could not migrate ticket schema: {e}")
 
     # ─── Background schedulers ──────────────────────────────────────
     # Start these AFTER all schema fixes are done, so they don't read
