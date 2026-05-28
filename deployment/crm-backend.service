@@ -29,7 +29,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/crm-backend/data.db /opt/crm-backend/backups /opt/crm-backend/app/uploads /opt/crm-backend/logs
+ReadWritePaths=/opt/crm-backend
 
 [Install]
 WantedBy=multi-user.target

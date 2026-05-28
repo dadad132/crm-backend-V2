@@ -57,10 +57,12 @@ apt-get install -y -qq \
 $PYTHON_BIN --version
 echo "✅ Python 3.12 installed"
 
-# ── Step 3: Application user ─────────────────────────────────
+# ── Step 3: Application user (no home dir yet — we clone first) ──
 echo "━━━ Step 3 / 10 — Creating application user ━━━"
 if ! id "$APP_USER" &>/dev/null; then
-    useradd --system --shell /bin/bash --home-dir "$INSTALL_DIR" --create-home "$APP_USER"
+    # Create system user WITHOUT --create-home so it does not pre-create
+    # $INSTALL_DIR. git clone requires the target to be absent or empty.
+    useradd --system --shell /bin/bash "$APP_USER"
     echo "✅ User '$APP_USER' created"
 else
     echo "✅ User '$APP_USER' already exists"
@@ -75,10 +77,14 @@ if [ -d "$INSTALL_DIR/.git" ]; then
     git reset --hard origin/main
     echo "✅ Repository updated"
 else
-    # Fresh clone — preserve data.db and app/uploads if they exist from a migration
-    if [ -f "/tmp/crm-migrate/data.db" ]; then
-        echo "   Found migration data — will restore after clone"
-        RESTORE_DATA=true
+    # Remove the directory only if it is completely empty (safety check)
+    if [ -d "$INSTALL_DIR" ] && [ -z "$(ls -A "$INSTALL_DIR" 2>/dev/null)" ]; then
+        rmdir "$INSTALL_DIR"
+    fi
+    if [ -d "$INSTALL_DIR" ] && [ ! -d "$INSTALL_DIR/.git" ]; then
+        echo "❌ $INSTALL_DIR exists but is not a git repo and is not empty."
+        echo "   Move or delete it first, then re-run this script."
+        exit 1
     fi
     git clone "$REPO_URL" "$INSTALL_DIR"
     echo "✅ Repository cloned"
@@ -191,7 +197,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=$INSTALL_DIR/data.db $INSTALL_DIR/backups $INSTALL_DIR/app/uploads $INSTALL_DIR/logs
+ReadWritePaths=$INSTALL_DIR
 
 [Install]
 WantedBy=multi-user.target
