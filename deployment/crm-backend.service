@@ -1,7 +1,7 @@
 [Unit]
-Description=CRM Backend Application
+Description=CEM Backend Application
 After=network.target
-Documentation=https://github.com/your-repo/crm-backend
+Documentation=https://github.com/dadad132/crm-backend-V2
 
 [Service]
 Type=simple
@@ -10,30 +10,26 @@ Group=crm
 WorkingDirectory=/opt/crm-backend
 Environment="PATH=/opt/crm-backend/venv/bin"
 Environment="PYTHONUNBUFFERED=1"
+EnvironmentFile=/opt/crm-backend/.env
 
-# Start command
 ExecStart=/opt/crm-backend/venv/bin/python start_server.py
 
-# Graceful shutdown with 30 second timeout
 TimeoutStopSec=30
 KillMode=mixed
 KillSignal=SIGTERM
 
-# Restart policy
 Restart=on-failure
 RestartSec=5
 
-# Logging
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=crm-backend
 
-# Security settings
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/crm-backend/data.db /opt/crm-backend/backups /opt/crm-backend/uploads
+ReadWritePaths=/opt/crm-backend/data.db /opt/crm-backend/backups /opt/crm-backend/app/uploads /opt/crm-backend/logs
 
 [Install]
 WantedBy=multi-user.target
