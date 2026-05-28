@@ -476,45 +476,23 @@ function checkEmails() {
     const btn = event.target;
     btn.disabled = true;
     btn.textContent = 'Checking...';
-    
+
     fetch('/web/admin/email-settings/check-emails', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'}
     })
     .then(response => response.json())
     .then(data => {
+        btn.disabled = false;
+        btn.textContent = 'Check Emails Now';
         if (data.success) {
-            btn.textContent = 'Processing emails...';
-            const startedAt = new Date().toISOString();
-            let polls = 0;
-            const maxPolls = 60;
-            const pollInterval = setInterval(() => {
-                polls++;
-                fetch('/web/admin/email-settings/check-emails/status')
-                .then(r => r.json())
-                .then(status => {
-                    if (!status.checking && status.completed_at && status.completed_at >= startedAt) {
-                        clearInterval(pollInterval);
-                        btn.disabled = false;
-                        btn.textContent = 'Check Emails Now';
-                        alert('✓ Email check complete.');
-                    } else if (polls >= maxPolls) {
-                        clearInterval(pollInterval);
-                        btn.disabled = false;
-                        btn.textContent = 'Check Emails Now';
-                        alert('⚠ Email check is still running — check again shortly.');
-                    }
-                })
-                .catch(() => {
-                    clearInterval(pollInterval);
-                    btn.disabled = false;
-                    btn.textContent = 'Check Emails Now';
-                });
-            }, 1000);
+            let msg = '✓ ' + data.message;
+            if (data.errors && data.errors.length > 0) {
+                msg += '\n\nConnection errors:\n• ' + data.errors.join('\n• ');
+            }
+            alert(msg);
         } else {
-            btn.disabled = false;
-            btn.textContent = 'Check Emails Now';
-            alert('✗ Failed to check emails: ' + (data.error || data.message || 'Unknown error'));
+            alert('✗ Failed to check emails: ' + (data.error || 'Unknown error'));
         }
     })
     .catch(err => {

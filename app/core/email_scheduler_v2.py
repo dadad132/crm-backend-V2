@@ -284,3 +284,83 @@ async def stop_email_scheduler():
 async def check_emails_now():
     """Trigger an immediate email check (wakes the scheduler)"""
     await email_scheduler.check_now()
+
+
+async def run_email_check_direct() -> dict:
+    """
+    Run an immediate email check across all configured accounts and return results.
+
+    Used by the manual 'Check Emails Now' button so it can report real results
+    without the race condition of polling the background scheduler's state.
+
+    Can run concurrently with the scheduler — ProcessedMail dedup prevents duplicates.
+
+    Returns:
+        dict with 'tickets_created' (int), 'accounts_checked' (int), 'errors' (list[str])
+    """
+    total_tickets = 0
+    errors = []
+    accounts_checked = 0
+
+    # --- Legacy single-account per workspace ---
+    try:
+        async with AsyncSession(engine) as db:
+            result = await db.execute(
+                select(EmailSettings.workspace_id).where(EmailSettings.incoming_mail_host.isnot(None))
+            )
+            workspace_ids = [row[0] for row in result.all()]
+
+        print(f"[Email Direct Check] Processing {len(workspace_ids)} legacy workspace(s)")
+
+        for ws_id in workspace_ids:
+            try:
+                async with AsyncSession(engine) as db:
+                    tickets = await process_workspace_emails(db, ws_id)
+                    total_tickets += len(tickets)
+                    accounts_checked += 1
+            except Exception as e:
+                errors.append(f"Workspace {ws_id}: {str(e)[:120]}")
+                print(f"[Email Direct Check] Error in workspace {ws_id}: {e}")
+    except Exception as e:
+        if "no such table" not in str(e).lower():
+            errors.append(f"Legacy check error: {str(e)[:120]}")
+
+    # --- New multi-account email settings ---
+    try:
+        async with AsyncSession(engine) as db:
+            result = await db.execute(
+                select(IncomingEmailAccount).where(IncomingEmailAccount.is_active == True)
+            )
+            accounts = result.scalars().all()
+
+        print(f"[Email Direct Check] Processing {len(accounts)} active account(s)")
+
+        for account in accounts:
+            account_name = account.name
+            try:
+                async with AsyncSession(engine) as account_db:
+                    tickets = await asyncio.wait_for(
+                        process_email_account(account_db, account),
+                        timeout=ACCOUNT_PROCESS_TIMEOUT
+                    )
+                    total_tickets += len(tickets)
+                    accounts_checked += 1
+
+                    account.last_checked_at = datetime.utcnow()
+                    account_db.add(account)
+                    await account_db.commit()
+            except asyncio.TimeoutError:
+                errors.append(f"'{account_name}' timed out after {ACCOUNT_PROCESS_TIMEOUT}s")
+                print(f"[Email Direct Check] Timeout for account '{account_name}'")
+            except Exception as e:
+                errors.append(f"'{account_name}': {str(e)[:120]}")
+                print(f"[Email Direct Check] Error for account '{account_name}': {e}")
+    except Exception as e:
+        if "no such table" not in str(e).lower():
+            errors.append(f"Multi-account check error: {str(e)[:120]}")
+
+    return {
+        'tickets_created': total_tickets,
+        'accounts_checked': accounts_checked,
+        'errors': errors,
+    }

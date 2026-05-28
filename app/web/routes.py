@@ -5069,29 +5069,51 @@ async def web_admin_email_settings_test(request: Request, db: AsyncSession = Dep
 
 @router.post('/admin/email-settings/check-emails')
 async def web_admin_check_emails(request: Request, db: AsyncSession = Depends(get_session)):
-    """Manually trigger email check - wakes the background scheduler immediately."""
+    """Run an immediate email check and return real results (tickets created, errors)."""
     user_id = request.session.get('user_id')
     if not user_id:
         return JSONResponse({'success': False, 'error': 'Not authenticated'})
-    
+
     user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
     if not user:
         return JSONResponse({'success': False, 'error': 'User not found'})
-    
+
     try:
-        from app.core.email_scheduler_v2 import email_scheduler
-        
-        if not email_scheduler.running:
-            return JSONResponse({'success': False, 'error': 'Email scheduler is not running. Please restart the server.'})
-        
-        # Wake the scheduler to run immediately (fire-and-forget)
-        await email_scheduler.check_now()
-        
+        import asyncio as _asyncio
+        from app.core.email_scheduler_v2 import run_email_check_direct
+
+        result = await _asyncio.wait_for(run_email_check_direct(), timeout=120)
+
+        tickets = result['tickets_created']
+        checked = result['accounts_checked']
+        errors = result['errors']
+
+        if checked == 0:
+            message = 'No email accounts are configured.'
+        elif tickets > 0:
+            message = f"Found {tickets} new email(s) — {tickets} ticket(s) created across {checked} account(s)."
+        else:
+            message = f"No new emails found across {checked} account(s)."
+
+        if errors:
+            message += f" {len(errors)} account(s) had connection errors."
+
         return JSONResponse({
             'success': True,
-            'message': 'Email check triggered'
+            'tickets_created': tickets,
+            'accounts_checked': checked,
+            'errors': errors,
+            'message': message,
         })
-        
+
+    except _asyncio.TimeoutError:
+        return JSONResponse({
+            'success': True,
+            'tickets_created': 0,
+            'accounts_checked': 0,
+            'errors': [],
+            'message': 'Email check is taking longer than 2 minutes. Tickets will be created by the background scheduler.',
+        })
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
